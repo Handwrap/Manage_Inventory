@@ -203,7 +203,7 @@ const DEMO_ITEMS = (() => {
 })();
 
 const state = { items: [], branches: [], branch: '', view: 'branch', q: '', status: 'all',
-  sort: { key: null, dir: 1 }, editing: null, saving: false, demo: false, loaded: false };
+  sort: { key: null, dir: 1 }, editing: null, saving: false, demo: false, loaded: false, itemsLoading: false, reqId: 0 };
 const $ = id => document.getElementById(id);
 const LS_KEY = 'stockcheck.branch';
 function lsGet() { try { return localStorage.getItem(LS_KEY) || ''; } catch (e) { return ''; } }
@@ -294,48 +294,76 @@ async function loadFromSheet() {
   }
   return { items, branches };
 }
-async function loadFromScript() {
+async function callScript(params) {
+  const q = Object.entries(Object.assign({ token: CONFIG.TOKEN, _: Date.now() }, params))
+    .map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&');
   const sep = CONFIG.APPS_SCRIPT_URL.includes('?') ? '&' : '?';
-  const res = await fetch(CONFIG.APPS_SCRIPT_URL + sep + 'token=' + encodeURIComponent(CONFIG.TOKEN) + '&_=' + Date.now());
+  const res = await fetch(CONFIG.APPS_SCRIPT_URL + sep + q);
   const data = await res.json();
   if (!data.ok) throw new Error(data.error || 'Apps Script returned an error.');
-  return {
-    branches: data.branches,
-    items: data.items.map(x => ({ row: x.row, branch: String(x.branch), itemNo: String(x.itemNo), itemName: String(x.itemName), qty: toNumber(x.qty) }))
-  };
+  return data;
 }
+const mapItems = list => list.map(x => ({ row: x.row, branch: String(x.branch), itemNo: String(x.itemNo), itemName: String(x.itemName), qty: toNumber(x.qty) }));
+const CACHE_KEY = 'stockcheck.branches.' + CONFIG.APPS_SCRIPT_URL;
+function cacheGet() { try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '[]'); } catch (e) { return []; } }
+function cacheSet(v) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(v)); } catch (e) {} }
 function uniq(list) {
   const seen = new Set(); const out = [];
   list.forEach(b => { const k = b.trim().toLowerCase(); if (b.trim() && !seen.has(k)) { seen.add(k); out.push(b.trim()); } });
   return out;
 }
-async function load(manual) {
-  const rbtn = $('refresh'); rbtn.disabled = true; rbtn.textContent = 'Loading…';
+/* Step 1: load the branch list (fast). With Apps Script, the last list is shown instantly from the device cache. */
+async function loadBranches(fresh) {
   $('retry').hidden = true;
+  const cached = CONFIG.APPS_SCRIPT_URL ? cacheGet() : [];
+  if (cached.length && !state.loaded) { state.branches = cached; state.loaded = true; render(); }
   try {
-    let data;
-    if (CONFIG.APPS_SCRIPT_URL) { data = await loadFromScript(); state.demo = false; banner(''); }
-    else if (CONFIG.SHEET_URL) {
-      data = await loadFromSheet(); state.demo = false;
+    if (CONFIG.APPS_SCRIPT_URL) {
+      const data = await callScript(fresh ? { action: 'branches', fresh: 1 } : { action: 'branches' });
+      state.branches = uniq(data.branches); state.demo = false; banner('');
+      cacheSet(state.branches);
+    } else if (CONFIG.SHEET_URL) {
+      const data = await loadFromSheet(); state.demo = false;
+      state.items = data.items; state.branches = uniq(data.branches);
       banner('Read-only: add an <code>APPS_SCRIPT_URL</code> to save quantity updates back to the sheet. Edits made here stay on screen only.');
     } else {
-      data = { items: JSON.parse(JSON.stringify(DEMO_ITEMS)), branches: DEMO_BRANCHES.slice() }; state.demo = true;
+      state.items = JSON.parse(JSON.stringify(DEMO_ITEMS)); state.branches = DEMO_BRANCHES.slice(); state.demo = true;
       banner('Showing <strong>sample data</strong>. Paste your Apps Script URL into <code>CONFIG.APPS_SCRIPT_URL</code> at the top of this file to use your real sheet.');
     }
-    state.items = data.items;
-    state.branches = uniq(data.branches);
     state.loaded = true;
     $('updated').textContent = 'Last updated ' + new Date().toLocaleString();
     if (state.branch && !state.branches.some(b => same(b, state.branch))) { state.branch = ''; state.view = 'branch'; }
     if (!state.branches.length) banner('<strong>No branches found.</strong> Check that the second tab has a column headed "Branch" with names below it.', true);
+  } catch (err) {
+    if (!state.branches.length) {
+      state.loaded = false;
+      banner('<strong>Could not load data.</strong> ' + escapeHTML(err.message || err), true);
+      $('retry').hidden = false;
+    } else toast('Could not refresh the branch list. Showing the last saved list.');
+  } finally { render(); }
+}
+
+/* Step 2: load stock for the chosen branch only (Apps Script mode). Other modes already hold all rows. */
+async function loadItems(manual) {
+  state.editing = null;
+  if (!CONFIG.APPS_SCRIPT_URL) {
+    if (manual) { const b = $('refresh'); b.disabled = true; b.textContent = 'Loading…'; await loadBranches(true); b.disabled = false; b.innerHTML = '&#8635; Refresh'; toast('Stock refreshed'); }
+    else render();
+    return;
+  }
+  const id = ++state.reqId;
+  const rbtn = $('refresh'); rbtn.disabled = true; rbtn.textContent = 'Loading…';
+  state.itemsLoading = true; render();
+  try {
+    const data = await callScript({ action: 'items', branch: state.branch });
+    if (id !== state.reqId) return;
+    state.items = mapItems(data.items); banner('');
+    $('updated').textContent = 'Last updated ' + new Date().toLocaleString();
     if (manual) toast('Stock refreshed');
   } catch (err) {
-    state.loaded = false;
-    banner('<strong>Could not load data.</strong> ' + escapeHTML(err.message || err), true);
-    $('retry').hidden = false;
+    if (id === state.reqId) banner('<strong>Could not load stock.</strong> ' + escapeHTML(err.message || err), true);
   } finally {
-    rbtn.disabled = false; rbtn.innerHTML = '&#8635; Refresh';
-    state.editing = null; render();
+    if (id === state.reqId) { state.itemsLoading = false; rbtn.disabled = false; rbtn.innerHTML = '&#8635; Refresh'; render(); }
   }
 }
 
@@ -382,7 +410,7 @@ function renderBranchView() {
     sel.innerHTML = `<option value="">${$('retry').hidden ? 'Loading branches…' : 'Could not load branches'}</option>`;
     sel.disabled = true; cont.disabled = true; return;
   }
-  const want = state.branch || lsGet();
+  const want = sel.value || state.branch || lsGet();
   sel.innerHTML = '<option value="">Choose a branch…</option>' +
     state.branches.map(b => `<option value="${escapeHTML(b)}">${escapeHTML(b)}</option>`).join('');
   const match = state.branches.find(b => same(b, want));
@@ -398,10 +426,11 @@ function renderCards(all) {
 }
 function renderStockView() {
   $('branchName').textContent = state.branch;
-  const all = branchItems();
+  const loading = state.itemsLoading;
+  const all = loading ? [] : branchItems();
   renderCards(all);
-  const list = visibleItems();
-  $('count').textContent = list.length + ' of ' + all.length + ' items';
+  const list = loading ? [] : visibleItems();
+  $('count').textContent = loading ? '' : list.length + ' of ' + all.length + ' items';
   const tbody = $('rows'); tbody.innerHTML = '';
   list.forEach(item => {
     const tr = document.createElement('tr');
@@ -420,7 +449,7 @@ function renderStockView() {
   });
   const empty = $('empty');
   empty.hidden = list.length > 0;
-  if (!list.length) empty.textContent = all.length ? 'No items match your search or filter.' : 'No items found for this branch.';
+  if (!list.length) empty.textContent = loading ? 'Loading items…' : all.length ? 'No items match your search or filter.' : 'No items found for this branch.';
   document.querySelectorAll('th[data-key]').forEach(th => {
     const active = state.sort.key === th.dataset.key;
     th.setAttribute('aria-sort', active ? (state.sort.dir === 1 ? 'ascending' : 'descending') : 'none');
@@ -442,12 +471,12 @@ $('continue').addEventListener('click', () => {
   const v = $('branchSelect').value; if (!v) return;
   state.branch = v; lsSet(v); state.view = 'stock';
   state.q = ''; $('q').value = ''; state.status = 'all'; state.editing = null; state.sort = { key: null, dir: 1 };
-  render();
+  loadItems(false);
 });
-$('retry').addEventListener('click', () => load(false));
+$('retry').addEventListener('click', () => loadBranches(true));
 $('changeBranch').addEventListener('click', () => { state.view = 'branch'; state.editing = null; render(); });
 $('q').addEventListener('input', e => { state.q = e.target.value; state.editing = null; render(); });
-$('refresh').addEventListener('click', () => load(true));
+$('refresh').addEventListener('click', () => loadItems(true));
 $('cards').addEventListener('click', e => {
   const b = e.target.closest('.card'); if (!b) return;
   state.status = state.status === b.dataset.status ? 'all' : b.dataset.status; state.editing = null; render();
@@ -480,8 +509,8 @@ $('rows').addEventListener('keydown', e => {
 });
 
 render();
-load(false);
-if (CONFIG.AUTO_REFRESH_SECONDS > 0) setInterval(() => { if (state.view === 'stock' && state.editing === null && !state.saving) load(false); }, CONFIG.AUTO_REFRESH_SECONDS * 1000);
+loadBranches(false);
+if (CONFIG.AUTO_REFRESH_SECONDS > 0) setInterval(() => { if (state.view === 'stock' && state.editing === null && !state.saving && !state.itemsLoading) loadItems(false); }, CONFIG.AUTO_REFRESH_SECONDS * 1000);
 </script>
 </body>
 </html>
