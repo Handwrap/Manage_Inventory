@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock Check</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --surface: #ffffff; --surface-2: #f0f2f5; --border: #dfe3e8;
+    --text: #1b2430; --muted: #66707d; --accent: #2456d6; --accent-ink: #ffffff;
+    --ok-bg: #e4f5ea; --ok-ink: #14663a;
+    --low-bg: #fff2d6; --low-ink: #8a5a00;
+    --out-bg: #fde6e6; --out-ink: #a11d1d;
+    --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161c; --surface: #1a2029; --surface-2: #232b36; --border: #303a47;
+      --text: #e8edf3; --muted: #98a3b1; --accent: #6d9bff; --accent-ink: #0d1522;
+      --ok-bg: #163a27; --ok-ink: #7fe0a8;
+      --low-bg: #402f0c; --low-ink: #f3c46b;
+      --out-bg: #452020; --out-ink: #ff9d9d;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 24px 16px 48px; }
+  header.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  h1 { margin: 0; font-size: 24px; letter-spacing: -.01em; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .sub strong { color: var(--text); }
+  .head-actions { display: flex; gap: 8px; }
+  button { font: inherit; cursor: pointer; }
+  .btn {
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    padding: 8px 14px; border-radius: 8px; box-shadow: var(--shadow);
+  }
+  .btn:hover { background: var(--surface-2); }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.07); }
+  .btn.small { padding: 5px 10px; font-size: 13px; }
+
+  /* Branch picker */
+  .picker { max-width: 420px; margin: 9vh auto 0; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 28px 24px; box-shadow: var(--shadow); }
+  .picker h1 { font-size: 22px; }
+  .picker p { color: var(--muted); margin: 6px 0 20px; font-size: 14px; }
+  .picker label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .picker select { width: 100%; padding: 11px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); font: inherit; margin-bottom: 16px; }
+  .picker .btn { width: 100%; padding: 11px; }
+  .picker .retry { margin-top: 10px; }
+  select:focus, .search input:focus, .qty-input:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+
+  .banner { border: 1px solid var(--border); background: var(--surface); border-left: 4px solid var(--accent);
+    border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 13.5px; }
+  .banner.error { border-left-color: var(--out-ink); }
+  .banner code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .card { text-align: left; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); }
+  .card .n { font-size: 26px; font-weight: 650; line-height: 1.15; }
+  .card .l { color: var(--muted); font-size: 12.5px; }
+  .card[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .card.low .n { color: var(--low-ink); } .card.out .n { color: var(--out-ink); } .card.ok .n { color: var(--ok-ink); }
+
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
+  .search { flex: 1; position: relative; }
+  .search input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); font: inherit; }
+  .count { color: var(--muted); font-size: 13px; white-space: nowrap; }
+
+  .table-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { background: var(--surface-2); font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); user-select: none; }
+  th button { all: unset; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+  th button:focus-visible { outline: 2px solid var(--accent); }
+  th .arrow { font-size: 10px; opacity: .35; }
+  th[aria-sort="ascending"] .arrow, th[aria-sort="descending"] .arrow { opacity: 1; color: var(--accent); }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover td { background: var(--surface-2); }
+  td.name { white-space: normal; min-width: 180px; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.qty { font-weight: 600; }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .badge.ok { background: var(--ok-bg); color: var(--ok-ink); }
+  .badge.low { background: var(--low-bg); color: var(--low-ink); }
+  .badge.out { background: var(--out-bg); color: var(--out-ink); }
+  .qty-input { width: 96px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); font: inherit; text-align: right; }
+  .actions { text-align: right; white-space: nowrap; }
+  .actions .btn + .btn { margin-left: 6px; }
+  .empty { padding: 40px 16px; text-align: center; color: var(--muted); }
+
+  .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: var(--text); color: var(--bg);
+    padding: 10px 16px; border-radius: 8px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s; max-width: 90vw; }
+  .toast.show { opacity: 1; }
+
+  @media (max-width: 640px) {
+    .cards { grid-template-columns: repeat(2, 1fr); }
+    th, td { padding: 10px 10px; }
+    .hide-sm { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="banner" class="banner" hidden></div>
+
+  <!-- STEP 1: choose branch -->
+  <section id="view-branch" class="picker" hidden>
+    <h1>Stock Check</h1>
+    <p>Choose a branch to see its current stock.</p>
+    <label for="branchSelect">Branch</label>
+    <select id="branchSelect" disabled><option value="">Loading branches…</option></select>
+    <button class="btn primary" id="continue" type="button" disabled>Continue</button>
+    <button class="btn retry" id="retry" type="button" hidden>Try again</button>
+  </section>
+
+  <!-- STEP 2: stock detail -->
+  <section id="view-stock" hidden>
+    <header class="top">
+      <div>
+        <h1>Stock Check</h1>
+        <div class="sub">Branch: <strong id="branchName"></strong> &middot; <span id="updated"></span></div>
+      </div>
+      <div class="head-actions">
+        <button class="btn" id="changeBranch" type="button">&#8592; Change branch</button>
+        <button class="btn" id="refresh" type="button">&#8635; Refresh</button>
+      </div>
+    </header>
+
+    <section class="cards" id="cards" aria-label="Stock summary"></section>
+
+    <div class="toolbar">
+      <label class="search">
+        <input id="q" type="search" placeholder="Search by item no. or item name" autocomplete="off" aria-label="Search items">
+      </label>
+      <span class="count" id="count"></span>
+    </div>
+
+    <div class="table-box">
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th data-key="itemNo" aria-sort="none"><button type="button">Item No <span class="arrow">&#9650;</span></button></th>
+              <th data-key="itemName" aria-sort="none"><button type="button">Item Name <span class="arrow">&#9650;</span></button></th>
+              <th data-key="qty" class="num" aria-sort="none"><button type="button">Quantity Remaining <span class="arrow">&#9650;</span></button></th>
+              <th class="hide-sm">Status</th>
+              <th class="actions">Update</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="empty" hidden></div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ============================ CONFIG ============================ */
+const CONFIG = {
+  // Paste your Apps Script Web App URL here (see apps-script-code.gs for setup).
+  // With it, the page reads the stock tab (1st tab) and the branch list (2nd tab),
+  // and saves quantity updates back to the sheet.
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyxYm4rop8T86vwovzHs5LfsFjrRuXfID1d3aPBKV42Dbxr2UcduTZ97AfoBfLG73gs/exec',
+  TOKEN: '',                 // must match SECRET in the Apps Script, if you set one
+
+  // Optional read-only mode (no Apps Script): paste the Google Sheet link
+  // (Share > "Anyone with the link" > Viewer). Updates then stay on screen only.
+  SHEET_URL: '',
+  BRANCH_TAB_NAME: '',       // read-only mode: name of the 2nd tab that holds the "Branch" column.
+                             // If left empty, branches are taken from the Branch column of the stock tab.
+
+  LOW_STOCK_THRESHOLD: 10,   // quantity at or below this = "Low stock"
+  AUTO_REFRESH_SECONDS: 0    // 0 = off
+};
+/* ================================================================ */
+
+const DEMO_BRANCHES = ['Siam', 'Silom', 'Chiang Mai'];
+const DEMO_ITEMS = (() => {
+  const base = [
+    ['A-1001','Copy Paper A4 (80gsm, ream)'],['A-1002','Ballpoint Pen - Blue'],['A-1003','Stapler Heavy Duty'],
+    ['A-1004','Sticky Notes 3x3 in'],['B-2001','Thermal Receipt Roll 80mm'],['B-2002','Toner Cartridge - Black'],
+    ['B-2003','Whiteboard Marker Set'],['C-3001','USB-C Cable 1m'],['C-3002','Wireless Mouse'],['D-4001','Hand Sanitizer 500ml']
+  ];
+  const qtys = { 'Siam': [48,6,0,120,9,3,27,15,0,64], 'Silom': [12,40,8,0,55,7,2,30,18,5], 'Chiang Mai': [90,22,14,60,0,11,4,0,26,35] };
+  const out = []; let row = 2;
+  DEMO_BRANCHES.forEach(b => base.forEach((it, i) => out.push({ row: row++, branch: b, itemNo: it[0], itemName: it[1], qty: qtys[b][i] })));
+  return out;
+})();
+
+const state = { items: [], branches: [], branch: '', view: 'branch', q: '', status: 'all',
+  sort: { key: null, dir: 1 }, editing: null, saving: false, demo: false, loaded: false };
+const $ = id => document.getElementById(id);
+const LS_KEY = 'stockcheck.branch';
+function lsGet() { try { return localStorage.getItem(LS_KEY) || ''; } catch (e) { return ''; } }
+function lsSet(v) { try { localStorage.setItem(LS_KEY, v); } catch (e) {} }
+
+/* ---------- helpers ---------- */
+const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const same = (a, b) => String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+function statusOf(qty) { return qty <= 0 ? 'out' : qty <= CONFIG.LOW_STOCK_THRESHOLD ? 'low' : 'ok'; }
+const STATUS_LABEL = { ok: 'In stock', low: 'Low stock', out: 'Out of stock' };
+function escapeHTML(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 3200);
+}
+function banner(html, isError) {
+  const b = $('banner'); b.hidden = !html; b.className = 'banner' + (isError ? ' error' : ''); b.innerHTML = html || '';
+}
+function toNumber(v) { const n = Number(String(v).replace(/,/g, '').trim()); return Number.isFinite(n) ? n : 0; }
+function parseCSV(text) {
+  const rows = []; let row = [], cur = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"' && text[i + 1] === '"') { cur += '"'; i++; }
+      else if (c === '"') inQ = false;
+      else cur += c;
+    } else if (c === '"') inQ = true;
+    else if (c === ',') { row.push(cur); cur = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cur); rows.push(row); row = []; cur = ''; }
+    else cur += c;
+  }
+  if (cur !== '' || row.length) { row.push(cur); rows.push(row); }
+  return rows;
+}
+function findCols(headers) {
+  const h = headers.map(norm);
+  const pick = (names, skip) => {
+    for (const n of names) { const i = h.findIndex((x, k) => x === n && k !== skip); if (i >= 0) return i; }
+    for (const n of names) { const i = h.findIndex((x, k) => x.includes(n) && k !== skip); if (i >= 0) return i; }
+    return -1;
+  };
+  const branch = pick(['branch', 'branchname'], -1);
+  const cols = {
+    branch,
+    itemNo: pick(['itemno', 'itemnumber', 'itemcode', 'sku'], branch),
+    itemName: pick(['itemname', 'description', 'name'], branch),
+    qty: pick(['quantityremaining', 'qtyremaining', 'remaining', 'quantity', 'qty', 'stock'], branch)
+  };
+  const labels = { branch: 'Branch', itemNo: 'Item No', itemName: 'Item Name', qty: 'Quantity Remaining' };
+  const missing = Object.keys(cols).filter(k => cols[k] < 0).map(k => labels[k]);
+  if (missing.length) throw new Error('The stock tab (first tab) is missing column header(s): ' + missing.join(', ') + '.');
+  return cols;
+}
+
+/* ---------- loading ---------- */
+async function fetchCSV(id, extra) {
+  const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv${extra || ''}&_=${Date.now()}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Could not read the sheet (HTTP ' + res.status + '). Check that sharing is "Anyone with the link can view" and the tab name is right.');
+  const text = await res.text();
+  if (/^\s*<(!doctype|html)/i.test(text)) throw new Error('Google returned a sign-in page. Set sharing to "Anyone with the link can view".');
+  return parseCSV(text).filter(r => r.some(c => c.trim() !== ''));
+}
+async function loadFromSheet() {
+  const m = CONFIG.SHEET_URL.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  if (!m) throw new Error('SHEET_URL does not look like a Google Sheets link.');
+  const gid = (CONFIG.SHEET_URL.match(/[#&?]gid=(\d+)/) || [])[1];
+  const stock = await fetchCSV(m[1], gid ? '&gid=' + gid : '');
+  let items = [];
+  if (stock.length) {
+    const c = findCols(stock[0]);
+    items = stock.slice(1).map((r, i) => ({
+      row: i + 2, branch: (r[c.branch] || '').trim(), itemNo: (r[c.itemNo] || '').trim(),
+      itemName: (r[c.itemName] || '').trim(), qty: toNumber(r[c.qty])
+    })).filter(x => x.itemNo || x.itemName);
+  }
+  let branches = [];
+  if (CONFIG.BRANCH_TAB_NAME) {
+    const rows = await fetchCSV(m[1], '&sheet=' + encodeURIComponent(CONFIG.BRANCH_TAB_NAME));
+    if (rows.length) {
+      const col = rows[0].map(norm).findIndex(x => x === 'branch' || x.includes('branch'));
+      if (col < 0) throw new Error('No column with the header "Branch" found on the tab "' + CONFIG.BRANCH_TAB_NAME + '".');
+      branches = rows.slice(1).map(r => (r[col] || '').trim()).filter(Boolean);
+    }
+  } else {
+    branches = items.map(x => x.branch).filter(Boolean);
+  }
+  return { items, branches };
+}
+async function loadFromScript() {
+  const sep = CONFIG.APPS_SCRIPT_URL.includes('?') ? '&' : '?';
+  const res = await fetch(CONFIG.APPS_SCRIPT_URL + sep + 'token=' + encodeURIComponent(CONFIG.TOKEN) + '&_=' + Date.now());
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'Apps Script returned an error.');
+  return {
+    branches: data.branches,
+    items: data.items.map(x => ({ row: x.row, branch: String(x.branch), itemNo: String(x.itemNo), itemName: String(x.itemName), qty: toNumber(x.qty) }))
+  };
+}
+function uniq(list) {
+  const seen = new Set(); const out = [];
+  list.forEach(b => { const k = b.trim().toLowerCase(); if (b.trim() && !seen.has(k)) { seen.add(k); out.push(b.trim()); } });
+  return out;
+}
+async function load(manual) {
+  const rbtn = $('refresh'); rbtn.disabled = true; rbtn.textContent = 'Loading…';
+  $('retry').hidden = true;
+  try {
+    let data;
+    if (CONFIG.APPS_SCRIPT_URL) { data = await loadFromScript(); state.demo = false; banner(''); }
+    else if (CONFIG.SHEET_URL) {
+      data = await loadFromSheet(); state.demo = false;
+      banner('Read-only: add an <code>APPS_SCRIPT_URL</code> to save quantity updates back to the sheet. Edits made here stay on screen only.');
+    } else {
+      data = { items: JSON.parse(JSON.stringify(DEMO_ITEMS)), branches: DEMO_BRANCHES.slice() }; state.demo = true;
+      banner('Showing <strong>sample data</strong>. Paste your Apps Script URL into <code>CONFIG.APPS_SCRIPT_URL</code> at the top of this file to use your real sheet.');
+    }
+    state.items = data.items;
+    state.branches = uniq(data.branches);
+    state.loaded = true;
+    $('updated').textContent = 'Last updated ' + new Date().toLocaleString();
+    if (state.branch && !state.branches.some(b => same(b, state.branch))) { state.branch = ''; state.view = 'branch'; }
+    if (!state.branches.length) banner('<strong>No branches found.</strong> Check that the second tab has a column headed "Branch" with names below it.', true);
+    if (manual) toast('Stock refreshed');
+  } catch (err) {
+    state.loaded = false;
+    banner('<strong>Could not load data.</strong> ' + escapeHTML(err.message || err), true);
+    $('retry').hidden = false;
+  } finally {
+    rbtn.disabled = false; rbtn.innerHTML = '&#8635; Refresh';
+    state.editing = null; render();
+  }
+}
+
+/* ---------- saving ---------- */
+async function saveQty(item, newQty) {
+  if (!Number.isFinite(newQty) || newQty < 0) { toast('Enter a number that is 0 or more.'); return false; }
+  if (!CONFIG.APPS_SCRIPT_URL) {
+    item.qty = newQty; toast(state.demo ? 'Updated on screen (sample data)' : 'Updated on screen only — not saved to the sheet');
+    return true;
+  }
+  state.saving = true; render();
+  try {
+    const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids CORS preflight
+      body: JSON.stringify({ action: 'update', token: CONFIG.TOKEN, row: item.row, branch: item.branch, itemNo: item.itemNo, qty: newQty })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Update failed');
+    item.qty = newQty; toast('Saved to Google Sheet');
+    return true;
+  } catch (err) {
+    toast('Save failed: ' + (err.message || err)); return false;
+  } finally { state.saving = false; }
+}
+
+/* ---------- rendering ---------- */
+function branchItems() { return state.items.filter(x => same(x.branch, state.branch)); }
+function visibleItems() {
+  const q = state.q.trim().toLowerCase();
+  let list = branchItems().filter(x =>
+    (state.status === 'all' || statusOf(x.qty) === state.status) &&
+    (!q || x.itemNo.toLowerCase().includes(q) || x.itemName.toLowerCase().includes(q)));
+  const { key, dir } = state.sort;
+  if (key) list = list.slice().sort((a, b) => {
+    const A = a[key], B = b[key];
+    return (typeof A === 'number' ? A - B : String(A).localeCompare(String(B), undefined, { numeric: true, sensitivity: 'base' })) * dir;
+  });
+  return list;
+}
+function renderBranchView() {
+  const sel = $('branchSelect'); const cont = $('continue');
+  if (!state.loaded) {
+    sel.innerHTML = `<option value="">${$('retry').hidden ? 'Loading branches…' : 'Could not load branches'}</option>`;
+    sel.disabled = true; cont.disabled = true; return;
+  }
+  const want = state.branch || lsGet();
+  sel.innerHTML = '<option value="">Choose a branch…</option>' +
+    state.branches.map(b => `<option value="${escapeHTML(b)}">${escapeHTML(b)}</option>`).join('');
+  const match = state.branches.find(b => same(b, want));
+  sel.value = match || '';
+  sel.disabled = !state.branches.length; cont.disabled = !sel.value;
+}
+function renderCards(all) {
+  const c = { all: all.length, ok: 0, low: 0, out: 0 };
+  all.forEach(x => c[statusOf(x.qty)]++);
+  const defs = [['all', 'All items', ''], ['ok', 'In stock', 'ok'], ['low', 'Low stock', 'low'], ['out', 'Out of stock', 'out']];
+  $('cards').innerHTML = defs.map(([k, label, cls]) =>
+    `<button type="button" class="card ${cls}" data-status="${k}" aria-pressed="${state.status === k}"><div class="n">${c[k]}</div><div class="l">${label}</div></button>`).join('');
+}
+function renderStockView() {
+  $('branchName').textContent = state.branch;
+  const all = branchItems();
+  renderCards(all);
+  const list = visibleItems();
+  $('count').textContent = list.length + ' of ' + all.length + ' items';
+  const tbody = $('rows'); tbody.innerHTML = '';
+  list.forEach(item => {
+    const tr = document.createElement('tr');
+    const st = statusOf(item.qty);
+    const editing = state.editing === item.row;
+    const qtyCell = editing
+      ? `<input class="qty-input" type="number" min="0" step="any" value="${item.qty}" aria-label="New quantity for ${escapeHTML(item.itemNo)}">`
+      : `${item.qty.toLocaleString()}`;
+    const actions = editing
+      ? `<button class="btn primary small" data-act="save" ${state.saving ? 'disabled' : ''}>${state.saving ? 'Saving…' : 'Save'}</button><button class="btn small" data-act="cancel" ${state.saving ? 'disabled' : ''}>Cancel</button>`
+      : `<button class="btn small" data-act="edit" ${state.saving ? 'disabled' : ''}>Update qty</button>`;
+    tr.dataset.row = item.row;
+    tr.innerHTML = `<td>${escapeHTML(item.itemNo)}</td><td class="name">${escapeHTML(item.itemName)}</td>` +
+      `<td class="num qty">${qtyCell}</td><td class="hide-sm"><span class="badge ${st}">${STATUS_LABEL[st]}</span></td><td class="actions">${actions}</td>`;
+    tbody.appendChild(tr);
+  });
+  const empty = $('empty');
+  empty.hidden = list.length > 0;
+  if (!list.length) empty.textContent = all.length ? 'No items match your search or filter.' : 'No items found for this branch.';
+  document.querySelectorAll('th[data-key]').forEach(th => {
+    const active = state.sort.key === th.dataset.key;
+    th.setAttribute('aria-sort', active ? (state.sort.dir === 1 ? 'ascending' : 'descending') : 'none');
+    th.querySelector('.arrow').innerHTML = active && state.sort.dir === -1 ? '&#9660;' : '&#9650;';
+  });
+  const inp = tbody.querySelector('.qty-input');
+  if (inp) { inp.focus(); inp.select(); }
+}
+function render() {
+  const showStock = state.view === 'stock' && !!state.branch && state.loaded;
+  $('view-stock').hidden = !showStock;
+  $('view-branch').hidden = showStock;
+  if (showStock) renderStockView(); else renderBranchView();
+}
+
+/* ---------- events ---------- */
+$('branchSelect').addEventListener('change', e => { $('continue').disabled = !e.target.value; });
+$('continue').addEventListener('click', () => {
+  const v = $('branchSelect').value; if (!v) return;
+  state.branch = v; lsSet(v); state.view = 'stock';
+  state.q = ''; $('q').value = ''; state.status = 'all'; state.editing = null; state.sort = { key: null, dir: 1 };
+  render();
+});
+$('retry').addEventListener('click', () => load(false));
+$('changeBranch').addEventListener('click', () => { state.view = 'branch'; state.editing = null; render(); });
+$('q').addEventListener('input', e => { state.q = e.target.value; state.editing = null; render(); });
+$('refresh').addEventListener('click', () => load(true));
+$('cards').addEventListener('click', e => {
+  const b = e.target.closest('.card'); if (!b) return;
+  state.status = state.status === b.dataset.status ? 'all' : b.dataset.status; state.editing = null; render();
+});
+document.querySelector('thead').addEventListener('click', e => {
+  const th = e.target.closest('th[data-key]'); if (!th) return;
+  const k = th.dataset.key;
+  state.sort = state.sort.key === k ? { key: k, dir: -state.sort.dir } : { key: k, dir: 1 };
+  render();
+});
+async function commit(tr) {
+  const item = state.items.find(x => String(x.row) === tr.dataset.row);
+  const raw = tr.querySelector('.qty-input').value;
+  if (raw.trim() === '') { toast('Enter a quantity first.'); return; }
+  const ok = await saveQty(item, Number(raw));
+  if (ok) state.editing = null;
+  render();
+}
+$('rows').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-act]'); if (!btn || state.saving) return;
+  const tr = btn.closest('tr'); const act = btn.dataset.act;
+  if (act === 'edit') { state.editing = Number(tr.dataset.row); render(); }
+  else if (act === 'cancel') { state.editing = null; render(); }
+  else if (act === 'save') commit(tr);
+});
+$('rows').addEventListener('keydown', e => {
+  if (!e.target.classList.contains('qty-input') || state.saving) return;
+  if (e.key === 'Enter') commit(e.target.closest('tr'));
+  if (e.key === 'Escape') { state.editing = null; render(); }
+});
+
+render();
+load(false);
+if (CONFIG.AUTO_REFRESH_SECONDS > 0) setInterval(() => { if (state.view === 'stock' && state.editing === null && !state.saving) load(false); }, CONFIG.AUTO_REFRESH_SECONDS * 1000);
+</script>
+</body>
+</html>
