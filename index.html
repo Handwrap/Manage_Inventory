@@ -29,12 +29,13 @@
     margin: 0; background: var(--bg); color: var(--text);
     font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
-  .wrap { max-width: 980px; margin: 0 auto; padding: 24px 16px 48px; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 24px 16px 90px; }
   header.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
   h1 { margin: 0; font-size: 24px; letter-spacing: -.01em; }
+  h2.pagetitle { margin: 0; font-size: 20px; letter-spacing: -.01em; }
   .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
   .sub strong { color: var(--text); }
-  .head-actions { display: flex; gap: 8px; }
+  .head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
   button { font: inherit; cursor: pointer; }
   .btn {
     border: 1px solid var(--border); background: var(--surface); color: var(--text);
@@ -45,6 +46,7 @@
   .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .btn.primary:hover:not(:disabled) { filter: brightness(1.07); }
   .btn.small { padding: 5px 10px; font-size: 13px; }
+  .btn.danger { border-color: var(--out-ink); color: var(--out-ink); }
 
   /* Branch picker */
   .picker { max-width: 420px; margin: 9vh auto 0; background: var(--surface); border: 1px solid var(--border);
@@ -63,6 +65,16 @@
   .banner.error { border-left-color: var(--out-ink); }
   .banner code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
 
+  /* Dashboard tiles */
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 8px; }
+  .tile { text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px 20px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 8px; }
+  .tile:hover { background: var(--surface-2); }
+  .tile .icon { font-size: 26px; }
+  .tile .t { font-size: 17px; font-weight: 650; }
+  .tile .d { font-size: 13px; color: var(--muted); line-height: 1.45; }
+  .tile .n { margin-top: 6px; font-size: 13px; color: var(--accent); font-weight: 600; }
+
   .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
   .card { text-align: left; border: 1px solid var(--border); background: var(--surface); color: var(--text);
     border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); }
@@ -71,11 +83,12 @@
   .card[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: -1px; }
   .card.low .n { color: var(--low-ink); } .card.out .n { color: var(--out-ink); } .card.ok .n { color: var(--ok-ink); }
 
-  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; }
-  .search { flex: 1; position: relative; }
+  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+  .search { flex: 1; min-width: 180px; position: relative; }
   .search input { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
     background: var(--surface); color: var(--text); font: inherit; }
   .count { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .link-btn { background: none; border: none; color: var(--accent); font: inherit; font-size: 13px; padding: 0; }
 
   .table-box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); }
   .scroll { overflow-x: auto; }
@@ -88,6 +101,7 @@
   th[aria-sort="ascending"] .arrow, th[aria-sort="descending"] .arrow { opacity: 1; color: var(--accent); }
   tbody tr:last-child td { border-bottom: 0; }
   tbody tr:hover td { background: var(--surface-2); }
+  tr.selected td { background: var(--ok-bg); }
   td.name { white-space: normal; min-width: 180px; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   td.qty { font-weight: 600; }
@@ -95,16 +109,39 @@
   .badge.ok { background: var(--ok-bg); color: var(--ok-ink); }
   .badge.low { background: var(--low-bg); color: var(--low-ink); }
   .badge.out { background: var(--out-bg); color: var(--out-ink); }
+  .badge.pending { background: var(--low-bg); color: var(--low-ink); }
+  .badge.received { background: var(--ok-bg); color: var(--ok-ink); }
   .qty-input { width: 96px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border);
     background: var(--surface); color: var(--text); font: inherit; text-align: right; }
+  .qty-input:disabled { opacity: .5; }
   .actions { text-align: right; white-space: nowrap; }
   .actions .btn + .btn { margin-left: 6px; }
   .empty { padding: 40px 16px; text-align: center; color: var(--muted); }
+  input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); cursor: pointer; }
+
+  .selectbar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--border);
+    box-shadow: 0 -2px 10px rgba(16,24,40,.08); padding: 12px 16px; display: flex; justify-content: center; z-index: 20; }
+  .selectbar .inner { max-width: 1040px; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .selectbar .msg { font-size: 14px; }
+  .selectbar .msg strong { color: var(--accent); }
 
   .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: var(--text); color: var(--bg);
-    padding: 10px 16px; border-radius: 8px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s; max-width: 90vw; }
+    padding: 10px 16px; border-radius: 8px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s; max-width: 90vw; z-index: 60; }
   .toast.show { opacity: 1; }
 
+  .modal-overlay { position: fixed; inset: 0; background: rgba(10,14,20,.5); display: flex; align-items: center; justify-content: center;
+    padding: 20px; z-index: 50; }
+  .modal { background: var(--surface); border-radius: 14px; max-width: 560px; width: 100%; max-height: 85vh; overflow-y: auto;
+    padding: 22px 22px 18px; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+  .modal h3 { margin: 0 0 4px; font-size: 18px; }
+  .modal p.hint { color: var(--muted); font-size: 13.5px; margin: 0 0 14px; }
+  .modal table { font-size: 13.5px; }
+  .modal table th, .modal table td { padding: 8px 10px; }
+  .modal .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+  @media (max-width: 760px) {
+    .tiles { grid-template-columns: 1fr; }
+  }
   @media (max-width: 640px) {
     .cards { grid-template-columns: repeat(2, 1fr); }
     th, td { padding: 10px 10px; }
@@ -119,35 +156,63 @@
   <!-- STEP 1: choose branch -->
   <section id="view-branch" class="picker" hidden>
     <h1>Stock Check</h1>
-    <p>Choose a branch to see its current stock.</p>
+    <p>Choose a branch to continue.</p>
     <label for="branchSelect">Branch</label>
     <select id="branchSelect" disabled><option value="">Loading branches…</option></select>
     <button class="btn primary" id="continue" type="button" disabled>Continue</button>
     <button class="btn retry" id="retry" type="button" hidden>Try again</button>
   </section>
 
-  <!-- STEP 2: stock detail -->
-  <section id="view-stock" hidden>
+  <!-- STEP 2: dashboard -->
+  <section id="view-dashboard" hidden>
     <header class="top">
       <div>
         <h1>Stock Check</h1>
-        <div class="sub">Branch: <strong id="branchName"></strong> &middot; <span id="updated"></span></div>
+        <div class="sub">Branch: <strong id="branchName0"></strong></div>
       </div>
       <div class="head-actions">
-        <button class="btn" id="changeBranch" type="button">&#8592; Change branch</button>
-        <button class="btn" id="refresh" type="button">&#8635; Refresh</button>
+        <button class="btn" id="changeBranch0" type="button">&#8592; Change branch</button>
       </div>
     </header>
-
-    <section class="cards" id="cards" aria-label="Stock summary"></section>
-
-    <div class="toolbar">
-      <label class="search">
-        <input id="q" type="search" placeholder="Search by item no. or item name" autocomplete="off" aria-label="Search items">
-      </label>
-      <span class="count" id="count"></span>
+    <div class="tiles">
+      <button class="tile" type="button" data-goto="purchase">
+        <div class="icon">&#128722;</div>
+        <div class="t">Request Purchase</div>
+        <div class="d">Select items and quantities to request from this branch's stock.</div>
+        <div class="n">Open &rarr;</div>
+      </button>
+      <button class="tile" type="button" data-goto="receipt">
+        <div class="icon">&#128230;</div>
+        <div class="t">Goods Receipt</div>
+        <div class="d">Record deliveries against submitted purchase requests.</div>
+        <div class="n">Open &rarr;</div>
+      </button>
+      <button class="tile" type="button" data-goto="inventory">
+        <div class="icon">&#128203;</div>
+        <div class="t">Manage Inventory</div>
+        <div class="d">Check current stock and update quantities on hand.</div>
+        <div class="n">Open &rarr;</div>
+      </button>
     </div>
+  </section>
 
+  <!-- STEP 3a: Manage Inventory -->
+  <section id="view-inventory" hidden>
+    <header class="top">
+      <div>
+        <h2 class="pagetitle">Manage Inventory</h2>
+        <div class="sub">Branch: <strong id="branchName1"></strong> &middot; <span id="updated1"></span></div>
+      </div>
+      <div class="head-actions">
+        <button class="btn" id="toDash1" type="button">&#8592; Dashboard</button>
+        <button class="btn" id="refresh1" type="button">&#8635; Refresh</button>
+      </div>
+    </header>
+    <section class="cards" id="cards1" aria-label="Stock summary"></section>
+    <div class="toolbar">
+      <label class="search"><input id="q1" type="search" placeholder="Search by item no. or item name" autocomplete="off" aria-label="Search items"></label>
+      <span class="count" id="count1"></span>
+    </div>
     <div class="table-box">
       <div class="scroll">
         <table>
@@ -160,29 +225,131 @@
               <th class="actions">Update</th>
             </tr>
           </thead>
-          <tbody id="rows"></tbody>
+          <tbody id="rows1"></tbody>
         </table>
       </div>
-      <div class="empty" id="empty" hidden></div>
+      <div class="empty" id="empty1" hidden></div>
+    </div>
+  </section>
+
+  <!-- STEP 3b: Request Purchase -->
+  <section id="view-purchase" hidden>
+    <header class="top">
+      <div>
+        <h2 class="pagetitle">Request Purchase</h2>
+        <div class="sub">Branch: <strong id="branchName2"></strong> &middot; <span id="updated2"></span></div>
+      </div>
+      <div class="head-actions">
+        <button class="btn" id="toDash2" type="button">&#8592; Dashboard</button>
+        <button class="btn" id="refresh2" type="button">&#8635; Refresh</button>
+      </div>
+    </header>
+    <div class="toolbar">
+      <label class="search"><input id="q2" type="search" placeholder="Search by item no. or item name" autocomplete="off" aria-label="Search items"></label>
+      <span class="count" id="count2"></span>
+    </div>
+    <div class="table-box">
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:36px"></th>
+              <th data-key="itemNo" aria-sort="none"><button type="button">Item No <span class="arrow">&#9650;</span></button></th>
+              <th data-key="itemName" aria-sort="none"><button type="button">Item Name <span class="arrow">&#9650;</span></button></th>
+              <th data-key="qty" class="num" aria-sort="none"><button type="button">Quantity Remaining <span class="arrow">&#9650;</span></button></th>
+              <th class="num">Request Quantity</th>
+            </tr>
+          </thead>
+          <tbody id="rows2"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="empty2" hidden></div>
+    </div>
+  </section>
+
+  <!-- STEP 3c: Goods Receipt -->
+  <section id="view-receipt" hidden>
+    <header class="top">
+      <div>
+        <h2 class="pagetitle">Goods Receipt</h2>
+        <div class="sub">Branch: <strong id="branchName3"></strong> &middot; <span id="updated3"></span></div>
+      </div>
+      <div class="head-actions">
+        <button class="btn" id="toDash3" type="button">&#8592; Dashboard</button>
+        <button class="btn" id="refresh3" type="button">&#8635; Refresh</button>
+      </div>
+    </header>
+    <div class="toolbar">
+      <button class="link-btn" id="toggleHistory" type="button">Show received history</button>
+      <span class="count" id="count3"></span>
+    </div>
+    <div class="table-box">
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>PR ID</th>
+              <th class="hide-sm">Date</th>
+              <th>Item No</th>
+              <th>Item Name</th>
+              <th class="num">Remaining Qty</th>
+              <th class="num">Request Qty</th>
+              <th class="num">Goods Receipt Qty</th>
+              <th class="hide-sm">Status</th>
+              <th class="actions">Receive</th>
+            </tr>
+          </thead>
+          <tbody id="rows3"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="empty3" hidden></div>
     </div>
   </section>
 </div>
+
+<!-- Purchase request confirmation modal -->
+<div class="modal-overlay" id="prModal" hidden>
+  <div class="modal">
+    <h3>Confirm purchase request</h3>
+    <p class="hint">Please review before submitting. This will be recorded to Purchase_Request.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Item No</th><th>Item Name</th><th class="num">Request Qty</th></tr></thead>
+        <tbody id="prModalRows"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="prCancel" type="button">Cancel</button>
+      <button class="btn primary" id="prConfirm" type="button">Submit request</button>
+    </div>
+  </div>
+</div>
+
+<!-- Goods receipt confirmation modal -->
+<div class="modal-overlay" id="grModal" hidden>
+  <div class="modal">
+    <h3>Confirm goods receipt</h3>
+    <p class="hint" id="grModalHint"></p>
+    <div class="modal-actions">
+      <button class="btn" id="grCancel" type="button">Cancel</button>
+      <button class="btn primary" id="grConfirm" type="button">Confirm receipt</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 /* ============================ CONFIG ============================ */
 const CONFIG = {
   // Paste your Apps Script Web App URL here (see apps-script-code.gs for setup).
-  // With it, the page reads the stock tab (1st tab) and the branch list (2nd tab),
-  // and saves quantity updates back to the sheet.
   APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyxYm4rop8T86vwovzHs5LfsFjrRuXfID1d3aPBKV42Dbxr2UcduTZ97AfoBfLG73gs/exec',
   TOKEN: '',                 // must match SECRET in the Apps Script, if you set one
 
   // Optional read-only mode (no Apps Script): paste the Google Sheet link
-  // (Share > "Anyone with the link" > Viewer). Updates then stay on screen only.
+  // (Share > "Anyone with the link" > Viewer). Purchase Request / Goods Receipt need the Apps Script mode.
   SHEET_URL: '',
-  BRANCH_TAB_NAME: '',       // read-only mode: name of the 2nd tab that holds the "Branch" column.
-                             // If left empty, branches are taken from the Branch column of the stock tab.
+  BRANCH_TAB_NAME: '',
 
   LOW_STOCK_THRESHOLD: 10,   // quantity at or below this = "Low stock"
   AUTO_REFRESH_SECONDS: 0    // 0 = off
@@ -201,9 +368,19 @@ const DEMO_ITEMS = (() => {
   DEMO_BRANCHES.forEach(b => base.forEach((it, i) => out.push({ row: row++, branch: b, itemNo: it[0], itemName: it[1], qty: qtys[b][i] })));
   return out;
 })();
+let DEMO_PR = []; // demo-mode in-memory purchase requests
+let DEMO_PR_SEQ = 0;
 
-const state = { items: [], branches: [], branch: '', view: 'branch', q: '', status: 'all',
-  sort: { key: null, dir: 1 }, editing: null, saving: false, demo: false, loaded: false, itemsLoading: false, reqId: 0 };
+const state = {
+  branch: '', view: 'branch', branches: [], loaded: false, demo: false,
+  // inventory
+  items: [], itemsLoading: false, q1: '', status1: 'all', sort1: { key: null, dir: 1 }, editing1: null, saving1: false,
+  // purchase request
+  q2: '', sort2: { key: null, dir: 1 }, selected2: {}, qtyDraft2: {}, submitting2: false,
+  // goods receipt
+  prList: [], prLoading: false, prShowHistory: false, editing3: null, saving3: false,
+  reqId: 0
+};
 const $ = id => document.getElementById(id);
 const LS_KEY = 'stockcheck.branch';
 function lsGet() { try { return localStorage.getItem(LS_KEY) || ''; } catch (e) { return ''; } }
@@ -217,7 +394,7 @@ const STATUS_LABEL = { ok: 'In stock', low: 'Low stock', out: 'Out of stock' };
 function escapeHTML(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.classList.add('show');
-  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 3200);
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 3400);
 }
 function banner(html, isError) {
   const b = $('banner'); b.hidden = !html; b.className = 'banner' + (isError ? ' error' : ''); b.innerHTML = html || '';
@@ -227,11 +404,8 @@ function parseCSV(text) {
   const rows = []; let row = [], cur = '', inQ = false;
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
-    if (inQ) {
-      if (c === '"' && text[i + 1] === '"') { cur += '"'; i++; }
-      else if (c === '"') inQ = false;
-      else cur += c;
-    } else if (c === '"') inQ = true;
+    if (inQ) { if (c === '"' && text[i + 1] === '"') { cur += '"'; i++; } else if (c === '"') inQ = false; else cur += c; }
+    else if (c === '"') inQ = true;
     else if (c === ',') { row.push(cur); cur = ''; }
     else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cur); rows.push(row); row = []; cur = ''; }
     else cur += c;
@@ -248,8 +422,7 @@ function findCols(headers) {
   };
   const branch = pick(['branch', 'branchname'], -1);
   const cols = {
-    branch,
-    itemNo: pick(['itemno', 'itemnumber', 'itemcode', 'sku'], branch),
+    branch, itemNo: pick(['itemno', 'itemnumber', 'itemcode', 'sku'], branch),
     itemName: pick(['itemname', 'description', 'name'], branch),
     qty: pick(['quantityremaining', 'qtyremaining', 'remaining', 'quantity', 'qty', 'stock'], branch)
   };
@@ -259,11 +432,11 @@ function findCols(headers) {
   return cols;
 }
 
-/* ---------- loading ---------- */
+/* ---------- loading: branches / stock (via sheet CSV fallback) ---------- */
 async function fetchCSV(id, extra) {
   const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv${extra || ''}&_=${Date.now()}`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error('Could not read the sheet (HTTP ' + res.status + '). Check that sharing is "Anyone with the link can view" and the tab name is right.');
+  if (!res.ok) throw new Error('Could not read the sheet (HTTP ' + res.status + '). Check sharing and the tab name.');
   const text = await res.text();
   if (/^\s*<(!doctype|html)/i.test(text)) throw new Error('Google returned a sign-in page. Set sharing to "Anyone with the link can view".');
   return parseCSV(text).filter(r => r.some(c => c.trim() !== ''));
@@ -289,12 +462,17 @@ async function loadFromSheet() {
       if (col < 0) throw new Error('No column with the header "Branch" found on the tab "' + CONFIG.BRANCH_TAB_NAME + '".');
       branches = rows.slice(1).map(r => (r[col] || '').trim()).filter(Boolean);
     }
-  } else {
-    branches = items.map(x => x.branch).filter(Boolean);
-  }
+  } else branches = items.map(x => x.branch).filter(Boolean);
   return { items, branches };
 }
-async function callScript(params) {
+function uniq(list) {
+  const seen = new Set(); const out = [];
+  list.forEach(b => { const k = b.trim().toLowerCase(); if (b.trim() && !seen.has(k)) { seen.add(k); out.push(b.trim()); } });
+  return out;
+}
+
+/* ---------- Apps Script calls ---------- */
+async function callScriptGet(params) {
   const q = Object.entries(Object.assign({ token: CONFIG.TOKEN, _: Date.now() }, params))
     .map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&');
   const sep = CONFIG.APPS_SCRIPT_URL.includes('?') ? '&' : '?';
@@ -303,35 +481,39 @@ async function callScript(params) {
   if (!data.ok) throw new Error(data.error || 'Apps Script returned an error.');
   return data;
 }
+async function callScriptPost(body) {
+  const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
+    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(Object.assign({ token: CONFIG.TOKEN }, body))
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'Request failed.');
+  return data;
+}
 const mapItems = list => list.map(x => ({ row: x.row, branch: String(x.branch), itemNo: String(x.itemNo), itemName: String(x.itemName), qty: toNumber(x.qty) }));
 const CACHE_KEY = 'stockcheck.branches.' + CONFIG.APPS_SCRIPT_URL;
 function cacheGet() { try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '[]'); } catch (e) { return []; } }
 function cacheSet(v) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(v)); } catch (e) {} }
-function uniq(list) {
-  const seen = new Set(); const out = [];
-  list.forEach(b => { const k = b.trim().toLowerCase(); if (b.trim() && !seen.has(k)) { seen.add(k); out.push(b.trim()); } });
-  return out;
-}
-/* Step 1: load the branch list (fast). With Apps Script, the last list is shown instantly from the device cache. */
+
+/* ---------- Step 1: branch list ---------- */
 async function loadBranches(fresh) {
   $('retry').hidden = true;
   const cached = CONFIG.APPS_SCRIPT_URL ? cacheGet() : [];
   if (cached.length && !state.loaded) { state.branches = cached; state.loaded = true; render(); }
   try {
     if (CONFIG.APPS_SCRIPT_URL) {
-      const data = await callScript(fresh ? { action: 'branches', fresh: 1 } : { action: 'branches' });
+      const data = await callScriptGet(fresh ? { action: 'branches', fresh: 1 } : { action: 'branches' });
       state.branches = uniq(data.branches); state.demo = false; banner('');
       cacheSet(state.branches);
     } else if (CONFIG.SHEET_URL) {
       const data = await loadFromSheet(); state.demo = false;
       state.items = data.items; state.branches = uniq(data.branches);
-      banner('Read-only: add an <code>APPS_SCRIPT_URL</code> to save quantity updates back to the sheet. Edits made here stay on screen only.');
+      banner('Read-only mode: add an <code>APPS_SCRIPT_URL</code> to use Request Purchase and Goods Receipt, and to save quantity updates.');
     } else {
       state.items = JSON.parse(JSON.stringify(DEMO_ITEMS)); state.branches = DEMO_BRANCHES.slice(); state.demo = true;
       banner('Showing <strong>sample data</strong>. Paste your Apps Script URL into <code>CONFIG.APPS_SCRIPT_URL</code> at the top of this file to use your real sheet.');
     }
     state.loaded = true;
-    $('updated').textContent = 'Last updated ' + new Date().toLocaleString();
     if (state.branch && !state.branches.some(b => same(b, state.branch))) { state.branch = ''; state.view = 'branch'; }
     if (!state.branches.length) banner('<strong>No branches found.</strong> Check that the second tab has a column headed "Branch" with names below it.', true);
   } catch (err) {
@@ -343,67 +525,123 @@ async function loadBranches(fresh) {
   } finally { render(); }
 }
 
-/* Step 2: load stock for the chosen branch only (Apps Script mode). Other modes already hold all rows. */
+/* ---------- Step 2: stock items (Manage Inventory + Request Purchase share this) ---------- */
 async function loadItems(manual) {
-  state.editing = null;
   if (!CONFIG.APPS_SCRIPT_URL) {
-    if (manual) { const b = $('refresh'); b.disabled = true; b.textContent = 'Loading…'; await loadBranches(true); b.disabled = false; b.innerHTML = '&#8635; Refresh'; toast('Stock refreshed'); }
-    else render();
-    return;
+    if (manual) toast('Stock refreshed');
+    render(); return;
   }
   const id = ++state.reqId;
-  const rbtn = $('refresh'); rbtn.disabled = true; rbtn.textContent = 'Loading…';
   state.itemsLoading = true; render();
   try {
-    const data = await callScript({ action: 'items', branch: state.branch });
+    const data = await callScriptGet({ action: 'items', branch: state.branch });
     if (id !== state.reqId) return;
     state.items = mapItems(data.items); banner('');
-    $('updated').textContent = 'Last updated ' + new Date().toLocaleString();
     if (manual) toast('Stock refreshed');
   } catch (err) {
     if (id === state.reqId) banner('<strong>Could not load stock.</strong> ' + escapeHTML(err.message || err), true);
-  } finally {
-    if (id === state.reqId) { state.itemsLoading = false; rbtn.disabled = false; rbtn.innerHTML = '&#8635; Refresh'; render(); }
-  }
+  } finally { if (id === state.reqId) { state.itemsLoading = false; render(); } }
 }
 
-/* ---------- saving ---------- */
+/* ---------- Step 3: purchase requests (Goods Receipt tile) ---------- */
+async function loadPR(manual) {
+  state.editing3 = null;
+  if (!CONFIG.APPS_SCRIPT_URL) {
+    state.prList = state.demo ? DEMO_PR.filter(x => same(x.branch, state.branch)) : [];
+    if (manual) toast('Refreshed'); render(); return;
+  }
+  state.prLoading = true; render();
+  try {
+    const data = await callScriptGet({ action: 'pr', branch: state.branch, status: state.prShowHistory ? 'all' : 'pending' });
+    state.prList = data.items.map(x => ({
+      row: x.row, prId: String(x.prId), date: x.date, branch: String(x.branch), itemNo: String(x.itemNo), itemName: String(x.itemName),
+      remainingQty: toNumber(x.remainingQty), requestQty: toNumber(x.requestQty),
+      grQty: x.grQty === '' || x.grQty === null || x.grQty === undefined ? null : toNumber(x.grQty), receivedDate: x.receivedDate || ''
+    }));
+    banner('');
+    if (manual) toast('Refreshed');
+  } catch (err) {
+    banner('<strong>Could not load purchase requests.</strong> ' + escapeHTML(err.message || err), true);
+  } finally { state.prLoading = false; render(); }
+}
+
+/* ---------- saving: inventory qty ---------- */
 async function saveQty(item, newQty) {
   if (!Number.isFinite(newQty) || newQty < 0) { toast('Enter a number that is 0 or more.'); return false; }
   if (!CONFIG.APPS_SCRIPT_URL) {
     item.qty = newQty; toast(state.demo ? 'Updated on screen (sample data)' : 'Updated on screen only — not saved to the sheet');
     return true;
   }
-  state.saving = true; render();
+  state.saving1 = true; render();
   try {
-    const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids CORS preflight
-      body: JSON.stringify({ action: 'update', token: CONFIG.TOKEN, row: item.row, branch: item.branch, itemNo: item.itemNo, qty: newQty })
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'Update failed');
-    item.qty = newQty; toast('Saved to Google Sheet');
-    return true;
-  } catch (err) {
-    toast('Save failed: ' + (err.message || err)); return false;
-  } finally { state.saving = false; }
+    const data = await callScriptPost({ action: 'update', row: item.row, branch: item.branch, itemNo: item.itemNo, qty: newQty });
+    item.qty = newQty; toast('Saved to Google Sheet'); return true;
+  } catch (err) { toast('Save failed: ' + (err.message || err)); return false; }
+  finally { state.saving1 = false; }
 }
 
-/* ---------- rendering ---------- */
-function branchItems() { return state.items.filter(x => same(x.branch, state.branch)); }
-function visibleItems() {
-  const q = state.q.trim().toLowerCase();
-  let list = branchItems().filter(x =>
-    (state.status === 'all' || statusOf(x.qty) === state.status) &&
-    (!q || x.itemNo.toLowerCase().includes(q) || x.itemName.toLowerCase().includes(q)));
-  const { key, dir } = state.sort;
-  if (key) list = list.slice().sort((a, b) => {
-    const A = a[key], B = b[key];
-    return (typeof A === 'number' ? A - B : String(A).localeCompare(String(B), undefined, { numeric: true, sensitivity: 'base' })) * dir;
-  });
-  return list;
+/* ---------- saving: submit purchase request ---------- */
+async function submitPR() {
+  const chosen = branchItems1(state.items).filter(x => state.selected2[x.row]);
+  const items = chosen.map(x => ({ itemNo: x.itemNo, itemName: x.itemName, qty: x.qty, requestQty: state.qtyDraft2[x.row] }));
+  state.submitting2 = true; render();
+  try {
+    let prId;
+    if (!CONFIG.APPS_SCRIPT_URL) {
+      prId = 'PR' + String(++DEMO_PR_SEQ).padStart(4, '0');
+      const date = new Date().toISOString().slice(0, 10);
+      items.forEach(it => DEMO_PR.push({ row: DEMO_PR.length + 2, prId, date, branch: state.branch, itemNo: it.itemNo, itemName: it.itemName, remainingQty: it.qty, requestQty: it.requestQty, grQty: null, receivedDate: '' }));
+      toast((state.demo ? 'Sample data — ' : '') + 'Purchase request ' + prId + ' submitted (on screen only, not saved to the sheet)');
+    } else {
+      const data = await callScriptPost({ action: 'submitPR', branch: state.branch, items });
+      prId = data.prId;
+      toast('Purchase request ' + prId + ' submitted');
+    }
+    state.selected2 = {}; state.qtyDraft2 = {};
+    closeModal('prModal');
+  } catch (err) { toast('Submit failed: ' + (err.message || err)); }
+  finally { state.submitting2 = false; render(); }
 }
+
+/* ---------- saving: goods receipt ---------- */
+async function submitReceipt(pr, qty) {
+  state.saving3 = true; render();
+  try {
+    if (!CONFIG.APPS_SCRIPT_URL) {
+      pr.grQty = qty; pr.receivedDate = new Date().toISOString().slice(0, 10);
+      const stockItem = state.items.find(x => same(x.branch, pr.branch) && x.itemNo === pr.itemNo);
+      if (stockItem) stockItem.qty += qty;
+      if (!state.prShowHistory) state.prList = state.prList.filter(x => x !== pr);
+      toast('Receipt recorded (on screen only, not saved to the sheet)');
+    } else {
+      await callScriptPost({ action: 'receiveGoods', row: pr.row, prId: pr.prId, branch: pr.branch, itemNo: pr.itemNo, qty });
+      pr.grQty = qty; pr.receivedDate = new Date().toISOString().slice(0, 10);
+      toast('Goods receipt saved to Google Sheet');
+      if (!state.prShowHistory) state.prList = state.prList.filter(x => x !== pr);
+    }
+    state.editing3 = null; closeModal('grModal');
+  } catch (err) { toast('Save failed: ' + (err.message || err)); }
+  finally { state.saving3 = false; render(); }
+}
+
+/* ---------- shared table helpers ---------- */
+function branchItems1(items) { return items.filter(x => same(x.branch, state.branch)); }
+function sortList(list, sort) {
+  if (!sort.key) return list;
+  return list.slice().sort((a, b) => {
+    const A = a[sort.key], B = b[sort.key];
+    return (typeof A === 'number' ? A - B : String(A).localeCompare(String(B), undefined, { numeric: true, sensitivity: 'base' })) * sort.dir;
+  });
+}
+function applySort(theadEl, sort) {
+  theadEl.querySelectorAll('th[data-key]').forEach(th => {
+    const active = sort.key === th.dataset.key;
+    th.setAttribute('aria-sort', active ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none');
+    const a = th.querySelector('.arrow'); if (a) a.innerHTML = active && sort.dir === -1 ? '&#9660;' : '&#9650;';
+  });
+}
+
+/* ---------- rendering: branch picker ---------- */
 function renderBranchView() {
   const sel = $('branchSelect'); const cont = $('continue');
   if (!state.loaded) {
@@ -411,106 +649,250 @@ function renderBranchView() {
     sel.disabled = true; cont.disabled = true; return;
   }
   const want = sel.value || state.branch || lsGet();
-  sel.innerHTML = '<option value="">Choose a branch…</option>' +
-    state.branches.map(b => `<option value="${escapeHTML(b)}">${escapeHTML(b)}</option>`).join('');
+  sel.innerHTML = '<option value="">Choose a branch…</option>' + state.branches.map(b => `<option value="${escapeHTML(b)}">${escapeHTML(b)}</option>`).join('');
   const match = state.branches.find(b => same(b, want));
   sel.value = match || '';
   sel.disabled = !state.branches.length; cont.disabled = !sel.value;
 }
+
+/* ---------- rendering: dashboard ---------- */
+function renderDashboard() { $('branchName0').textContent = state.branch; }
+
+/* ---------- rendering: inventory ---------- */
 function renderCards(all) {
   const c = { all: all.length, ok: 0, low: 0, out: 0 };
   all.forEach(x => c[statusOf(x.qty)]++);
   const defs = [['all', 'All items', ''], ['ok', 'In stock', 'ok'], ['low', 'Low stock', 'low'], ['out', 'Out of stock', 'out']];
-  $('cards').innerHTML = defs.map(([k, label, cls]) =>
-    `<button type="button" class="card ${cls}" data-status="${k}" aria-pressed="${state.status === k}"><div class="n">${c[k]}</div><div class="l">${label}</div></button>`).join('');
+  $('cards1').innerHTML = defs.map(([k, label, cls]) =>
+    `<button type="button" class="card ${cls}" data-status="${k}" aria-pressed="${state.status1 === k}"><div class="n">${c[k]}</div><div class="l">${label}</div></button>`).join('');
 }
-function renderStockView() {
-  $('branchName').textContent = state.branch;
+function renderInventory() {
+  $('branchName1').textContent = state.branch;
+  $('updated1').textContent = state.itemsLoading ? 'Loading…' : 'Last updated ' + (state.lastUpdated1 || 'just now');
   const loading = state.itemsLoading;
-  const all = loading ? [] : branchItems();
+  const all = loading ? [] : branchItems1(state.items);
   renderCards(all);
-  const list = loading ? [] : visibleItems();
-  $('count').textContent = loading ? '' : list.length + ' of ' + all.length + ' items';
-  const tbody = $('rows'); tbody.innerHTML = '';
+  const q = state.q1.trim().toLowerCase();
+  let list = loading ? [] : all.filter(x => (state.status1 === 'all' || statusOf(x.qty) === state.status1) &&
+    (!q || x.itemNo.toLowerCase().includes(q) || x.itemName.toLowerCase().includes(q)));
+  list = sortList(list, state.sort1);
+  $('count1').textContent = loading ? '' : list.length + ' of ' + all.length + ' items';
+  const tbody = $('rows1'); tbody.innerHTML = '';
   list.forEach(item => {
     const tr = document.createElement('tr');
     const st = statusOf(item.qty);
-    const editing = state.editing === item.row;
+    const editing = state.editing1 === item.row;
     const qtyCell = editing
       ? `<input class="qty-input" type="number" min="0" step="any" value="${item.qty}" aria-label="New quantity for ${escapeHTML(item.itemNo)}">`
       : `${item.qty.toLocaleString()}`;
     const actions = editing
-      ? `<button class="btn primary small" data-act="save" ${state.saving ? 'disabled' : ''}>${state.saving ? 'Saving…' : 'Save'}</button><button class="btn small" data-act="cancel" ${state.saving ? 'disabled' : ''}>Cancel</button>`
-      : `<button class="btn small" data-act="edit" ${state.saving ? 'disabled' : ''}>Update qty</button>`;
+      ? `<button class="btn primary small" data-act="save" ${state.saving1 ? 'disabled' : ''}>${state.saving1 ? 'Saving…' : 'Save'}</button><button class="btn small" data-act="cancel" ${state.saving1 ? 'disabled' : ''}>Cancel</button>`
+      : `<button class="btn small" data-act="edit" ${state.saving1 ? 'disabled' : ''}>Update qty</button>`;
     tr.dataset.row = item.row;
     tr.innerHTML = `<td>${escapeHTML(item.itemNo)}</td><td class="name">${escapeHTML(item.itemName)}</td>` +
       `<td class="num qty">${qtyCell}</td><td class="hide-sm"><span class="badge ${st}">${STATUS_LABEL[st]}</span></td><td class="actions">${actions}</td>`;
     tbody.appendChild(tr);
   });
-  const empty = $('empty');
-  empty.hidden = list.length > 0;
+  const empty = $('empty1'); empty.hidden = list.length > 0;
   if (!list.length) empty.textContent = loading ? 'Loading items…' : all.length ? 'No items match your search or filter.' : 'No items found for this branch.';
-  document.querySelectorAll('th[data-key]').forEach(th => {
-    const active = state.sort.key === th.dataset.key;
-    th.setAttribute('aria-sort', active ? (state.sort.dir === 1 ? 'ascending' : 'descending') : 'none');
-    th.querySelector('.arrow').innerHTML = active && state.sort.dir === -1 ? '&#9660;' : '&#9650;';
-  });
-  const inp = tbody.querySelector('.qty-input');
-  if (inp) { inp.focus(); inp.select(); }
+  applySort(document.querySelector('#view-inventory thead'), state.sort1);
+  const inp = tbody.querySelector('.qty-input'); if (inp) { inp.focus(); inp.select(); }
 }
+
+/* ---------- rendering: request purchase ---------- */
+function renderPurchase() {
+  $('branchName2').textContent = state.branch;
+  $('updated2').textContent = state.itemsLoading ? 'Loading…' : 'Last updated ' + (state.lastUpdated1 || 'just now');
+  const loading = state.itemsLoading;
+  const all = loading ? [] : branchItems1(state.items);
+  const q = state.q2.trim().toLowerCase();
+  let list = loading ? [] : all.filter(x => !q || x.itemNo.toLowerCase().includes(q) || x.itemName.toLowerCase().includes(q));
+  list = sortList(list, state.sort2);
+  const selCount = Object.keys(state.selected2).filter(k => state.selected2[k]).length;
+  $('count2').textContent = loading ? '' : list.length + ' of ' + all.length + ' items' + (selCount ? ' · ' + selCount + ' selected' : '');
+  const tbody = $('rows2'); tbody.innerHTML = '';
+  list.forEach(item => {
+    const tr = document.createElement('tr');
+    const checked = !!state.selected2[item.row];
+    if (checked) tr.className = 'selected';
+    const draft = state.qtyDraft2[item.row];
+    tr.innerHTML = `<td><input type="checkbox" data-row="${item.row}" ${checked ? 'checked' : ''} aria-label="Select ${escapeHTML(item.itemNo)}"></td>` +
+      `<td>${escapeHTML(item.itemNo)}</td><td class="name">${escapeHTML(item.itemName)}</td>` +
+      `<td class="num">${item.qty.toLocaleString()}</td>` +
+      `<td class="num"><input class="qty-input" type="number" min="1" step="any" data-row="${item.row}" value="${draft !== undefined ? draft : ''}" ${checked ? '' : 'disabled'} placeholder="0"></td>`;
+    tbody.appendChild(tr);
+  });
+  const empty = $('empty2'); empty.hidden = list.length > 0;
+  if (!list.length) empty.textContent = loading ? 'Loading items…' : all.length ? 'No items match your search.' : 'No items found for this branch.';
+  applySort(document.querySelector('#view-purchase thead'), state.sort2);
+  renderSelectBar();
+}
+function renderSelectBar() {
+  let bar = $('selectbar2');
+  const items = branchItems1(state.items).filter(x => state.selected2[x.row]);
+  const valid = items.filter(x => Number(state.qtyDraft2[x.row]) > 0);
+  const show = state.view === 'purchase' && items.length > 0;
+  if (!show) { if (bar) bar.remove(); return; }
+  if (!bar) {
+    bar = document.createElement('div'); bar.className = 'selectbar'; bar.id = 'selectbar2';
+    bar.innerHTML = `<div class="inner"><div class="msg"></div><button class="btn primary" id="prReview" type="button">Review &amp; submit</button></div>`;
+    document.body.appendChild(bar);
+    bar.querySelector('#prReview').addEventListener('click', openPRModal);
+  }
+  bar.querySelector('.msg').innerHTML = `<strong>${items.length}</strong> item(s) selected` + (valid.length < items.length ? ' — enter a quantity for each' : '');
+  bar.querySelector('#prReview').disabled = valid.length === 0 || valid.length !== items.length;
+}
+function openPRModal() {
+  const items = branchItems1(state.items).filter(x => state.selected2[x.row]);
+  $('prModalRows').innerHTML = items.map(x => `<tr><td>${escapeHTML(x.itemNo)}</td><td>${escapeHTML(x.itemName)}</td><td class="num">${escapeHTML(String(state.qtyDraft2[x.row]))}</td></tr>`).join('');
+  $('prModal').hidden = false;
+}
+function closeModal(id) { $(id).hidden = true; }
+
+/* ---------- rendering: goods receipt ---------- */
+function renderReceipt() {
+  $('branchName3').textContent = state.branch;
+  $('updated3').textContent = state.prLoading ? 'Loading…' : 'Last updated ' + (state.lastUpdated3 || 'just now');
+  $('toggleHistory').textContent = state.prShowHistory ? 'Show pending only' : 'Show received history';
+  const loading = state.prLoading;
+  const list = loading ? [] : state.prList;
+  $('count3').textContent = loading ? '' : list.length + ' request' + (list.length === 1 ? '' : 's');
+  const tbody = $('rows3'); tbody.innerHTML = '';
+  list.forEach(pr => {
+    const editing = state.editing3 === pr.row;
+    const received = pr.grQty !== null;
+    const statusCell = received ? `<span class="badge received">Received</span>` : `<span class="badge pending">Pending</span>`;
+    const grCell = received ? pr.grQty.toLocaleString()
+      : editing ? `<input class="qty-input" type="number" min="1" step="any" value="${pr.requestQty}" aria-label="Goods receipt qty for ${escapeHTML(pr.prId)}">`
+      : '—';
+    let actions;
+    if (received) actions = '';
+    else if (editing) actions = `<button class="btn primary small" data-act="save" ${state.saving3 ? 'disabled' : ''}>${state.saving3 ? 'Saving…' : 'Confirm'}</button><button class="btn small" data-act="cancel" ${state.saving3 ? 'disabled' : ''}>Cancel</button>`;
+    else actions = `<button class="btn small" data-act="edit">Receive</button>`;
+    const tr = document.createElement('tr'); tr.dataset.row = pr.row;
+    tr.innerHTML = `<td>${escapeHTML(pr.prId)}</td><td class="hide-sm">${escapeHTML(pr.date)}</td><td>${escapeHTML(pr.itemNo)}</td><td class="name">${escapeHTML(pr.itemName)}</td>` +
+      `<td class="num">${pr.remainingQty.toLocaleString()}</td><td class="num">${pr.requestQty.toLocaleString()}</td><td class="num">${grCell}</td>` +
+      `<td class="hide-sm">${statusCell}</td><td class="actions">${actions}</td>`;
+    tbody.appendChild(tr);
+  });
+  const empty = $('empty3'); empty.hidden = list.length > 0;
+  if (!list.length) empty.textContent = loading ? 'Loading…' : state.prShowHistory ? 'No purchase requests for this branch yet.' : 'No pending requests. Everything has been received.';
+  const inp = tbody.querySelector('.qty-input'); if (inp) { inp.focus(); inp.select(); }
+}
+
+/* ---------- master render ---------- */
 function render() {
-  const showStock = state.view === 'stock' && !!state.branch && state.loaded;
-  $('view-stock').hidden = !showStock;
-  $('view-branch').hidden = showStock;
-  if (showStock) renderStockView(); else renderBranchView();
+  const v = state.view;
+  $('view-branch').hidden = v !== 'branch';
+  $('view-dashboard').hidden = v !== 'dashboard';
+  $('view-inventory').hidden = v !== 'inventory';
+  $('view-purchase').hidden = v !== 'purchase';
+  $('view-receipt').hidden = v !== 'receipt';
+  if (v === 'branch') renderBranchView();
+  else if (v === 'dashboard') renderDashboard();
+  else if (v === 'inventory') renderInventory();
+  else if (v === 'purchase') renderPurchase();
+  else if (v === 'receipt') renderReceipt();
+  else renderSelectBar();
+  if (v !== 'purchase') { const bar = $('selectbar2'); if (bar) bar.remove(); }
+}
+
+/* ---------- navigation ---------- */
+function goto(view) {
+  state.view = view;
+  if (view === 'inventory') { state.editing1 = null; state.q1 = ''; $('q1').value = ''; state.status1 = 'all'; state.sort1 = { key: null, dir: 1 }; loadItems(false).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); }); }
+  if (view === 'purchase') { state.q2 = ''; $('q2').value = ''; state.sort2 = { key: null, dir: 1 }; state.selected2 = {}; state.qtyDraft2 = {}; loadItems(false).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); }); }
+  if (view === 'receipt') { state.prShowHistory = false; loadPR(false).then(() => { state.lastUpdated3 = new Date().toLocaleString(); render(); }); }
+  render();
 }
 
 /* ---------- events ---------- */
 $('branchSelect').addEventListener('change', e => { $('continue').disabled = !e.target.value; });
-$('continue').addEventListener('click', () => {
-  const v = $('branchSelect').value; if (!v) return;
-  state.branch = v; lsSet(v); state.view = 'stock';
-  state.q = ''; $('q').value = ''; state.status = 'all'; state.editing = null; state.sort = { key: null, dir: 1 };
-  loadItems(false);
-});
+$('continue').addEventListener('click', () => { const v = $('branchSelect').value; if (!v) return; state.branch = v; lsSet(v); goto('dashboard'); });
 $('retry').addEventListener('click', () => loadBranches(true));
-$('changeBranch').addEventListener('click', () => { state.view = 'branch'; state.editing = null; render(); });
-$('q').addEventListener('input', e => { state.q = e.target.value; state.editing = null; render(); });
-$('refresh').addEventListener('click', () => loadItems(true));
-$('cards').addEventListener('click', e => {
-  const b = e.target.closest('.card'); if (!b) return;
-  state.status = state.status === b.dataset.status ? 'all' : b.dataset.status; state.editing = null; render();
-});
-document.querySelector('thead').addEventListener('click', e => {
+$('changeBranch0').addEventListener('click', () => { state.view = 'branch'; render(); });
+document.querySelectorAll('[data-goto]').forEach(el => el.addEventListener('click', () => goto(el.dataset.goto)));
+['toDash1', 'toDash2', 'toDash3'].forEach(id => $(id).addEventListener('click', () => goto('dashboard')));
+
+/* inventory */
+$('q1').addEventListener('input', e => { state.q1 = e.target.value; state.editing1 = null; render(); });
+$('refresh1').addEventListener('click', () => loadItems(true).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); }));
+$('cards1').addEventListener('click', e => { const b = e.target.closest('.card'); if (!b) return; state.status1 = state.status1 === b.dataset.status ? 'all' : b.dataset.status; state.editing1 = null; render(); });
+document.querySelector('#view-inventory thead').addEventListener('click', e => {
   const th = e.target.closest('th[data-key]'); if (!th) return;
-  const k = th.dataset.key;
-  state.sort = state.sort.key === k ? { key: k, dir: -state.sort.dir } : { key: k, dir: 1 };
-  render();
+  state.sort1 = state.sort1.key === th.dataset.key ? { key: th.dataset.key, dir: -state.sort1.dir } : { key: th.dataset.key, dir: 1 }; render();
 });
-async function commit(tr) {
+async function commit1(tr) {
   const item = state.items.find(x => String(x.row) === tr.dataset.row);
   const raw = tr.querySelector('.qty-input').value;
   if (raw.trim() === '') { toast('Enter a quantity first.'); return; }
-  const ok = await saveQty(item, Number(raw));
-  if (ok) state.editing = null;
-  render();
+  const ok = await saveQty(item, Number(raw)); if (ok) { state.editing1 = null; state.lastUpdated1 = new Date().toLocaleString(); } render();
 }
-$('rows').addEventListener('click', e => {
-  const btn = e.target.closest('button[data-act]'); if (!btn || state.saving) return;
+$('rows1').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-act]'); if (!btn || state.saving1) return;
   const tr = btn.closest('tr'); const act = btn.dataset.act;
-  if (act === 'edit') { state.editing = Number(tr.dataset.row); render(); }
-  else if (act === 'cancel') { state.editing = null; render(); }
-  else if (act === 'save') commit(tr);
+  if (act === 'edit') { state.editing1 = Number(tr.dataset.row); render(); }
+  else if (act === 'cancel') { state.editing1 = null; render(); }
+  else if (act === 'save') commit1(tr);
 });
-$('rows').addEventListener('keydown', e => {
-  if (!e.target.classList.contains('qty-input') || state.saving) return;
-  if (e.key === 'Enter') commit(e.target.closest('tr'));
-  if (e.key === 'Escape') { state.editing = null; render(); }
+$('rows1').addEventListener('keydown', e => {
+  if (!e.target.classList.contains('qty-input') || state.saving1) return;
+  if (e.key === 'Enter') commit1(e.target.closest('tr'));
+  if (e.key === 'Escape') { state.editing1 = null; render(); }
 });
+
+/* purchase request */
+$('q2').addEventListener('input', e => { state.q2 = e.target.value; render(); });
+$('refresh2').addEventListener('click', () => loadItems(true).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); }));
+document.querySelector('#view-purchase thead').addEventListener('click', e => {
+  const th = e.target.closest('th[data-key]'); if (!th) return;
+  state.sort2 = state.sort2.key === th.dataset.key ? { key: th.dataset.key, dir: -state.sort2.dir } : { key: th.dataset.key, dir: 1 }; render();
+});
+$('rows2').addEventListener('change', e => {
+  const cb = e.target.closest('input[type=checkbox]');
+  if (cb) {
+    const row = cb.dataset.row;
+    if (cb.checked) { state.selected2[row] = true; if (state.qtyDraft2[row] === undefined) state.qtyDraft2[row] = 1; }
+    else { delete state.selected2[row]; delete state.qtyDraft2[row]; }
+    render(); return;
+  }
+  const qi = e.target.closest('.qty-input');
+  if (qi) { state.qtyDraft2[qi.dataset.row] = qi.value; render(); }
+});
+$('rows2').addEventListener('input', e => { const qi = e.target.closest('.qty-input'); if (qi) { state.qtyDraft2[qi.dataset.row] = qi.value; renderSelectBar(); } });
+$('prCancel').addEventListener('click', () => closeModal('prModal'));
+$('prConfirm').addEventListener('click', () => { if (!state.submitting2) submitPR(); });
+
+/* goods receipt */
+$('refresh3').addEventListener('click', () => loadPR(true).then(() => { state.lastUpdated3 = new Date().toLocaleString(); render(); }));
+$('toggleHistory').addEventListener('click', () => { state.prShowHistory = !state.prShowHistory; loadPR(false).then(() => { state.lastUpdated3 = new Date().toLocaleString(); render(); }); });
+let pendingReceipt = null;
+$('rows3').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-act]'); if (!btn || state.saving3) return;
+  const tr = btn.closest('tr'); const act = btn.dataset.act;
+  const pr = state.prList.find(x => String(x.row) === tr.dataset.row);
+  if (act === 'edit') { state.editing3 = pr.row; render(); }
+  else if (act === 'cancel') { state.editing3 = null; render(); }
+  else if (act === 'save') {
+    const raw = tr.querySelector('.qty-input').value;
+    if (raw.trim() === '' || Number(raw) <= 0) { toast('Enter a quantity greater than 0.'); return; }
+    pendingReceipt = { pr, qty: Number(raw) };
+    $('grModalHint').textContent = `Record ${raw} received for ${pr.itemNo} (${pr.itemName}), PR ${pr.prId}. This adds to Quantity Remaining for ${pr.branch}.`;
+    $('grModal').hidden = false;
+  }
+});
+$('grCancel').addEventListener('click', () => { closeModal('grModal'); pendingReceipt = null; });
+$('grConfirm').addEventListener('click', () => { if (pendingReceipt && !state.saving3) { const { pr, qty } = pendingReceipt; pendingReceipt = null; submitReceipt(pr, qty); } });
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal('prModal'); closeModal('grModal'); } });
 
 render();
 loadBranches(false);
-if (CONFIG.AUTO_REFRESH_SECONDS > 0) setInterval(() => { if (state.view === 'stock' && state.editing === null && !state.saving && !state.itemsLoading) loadItems(false); }, CONFIG.AUTO_REFRESH_SECONDS * 1000);
+if (CONFIG.AUTO_REFRESH_SECONDS > 0) setInterval(() => {
+  if (state.saving1 || state.saving3 || state.submitting2) return;
+  if (state.view === 'inventory' && state.editing1 === null && !state.itemsLoading) loadItems(false).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); });
+  if (state.view === 'receipt' && state.editing3 === null && !state.prLoading) loadPR(false).then(() => { state.lastUpdated3 = new Date().toLocaleString(); render(); });
+}, CONFIG.AUTO_REFRESH_SECONDS * 1000);
 </script>
 </body>
 </html>
