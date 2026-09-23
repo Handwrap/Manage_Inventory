@@ -325,6 +325,23 @@
   </div>
 </div>
 
+<!-- Purchase request success popup -->
+<div class="modal-overlay" id="prSuccessModal" hidden>
+  <div class="modal">
+    <h3>&#9989; Purchase request submitted</h3>
+    <p class="hint">Recorded to <strong>Purchase_Request</strong> as <strong id="prSuccessId"></strong>, dated <span id="prSuccessDate"></span>.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Item No</th><th>Item Name</th><th class="num">Request Qty</th></tr></thead>
+        <tbody id="prSuccessRows"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button class="btn primary" id="prSuccessClose" type="button">Done</button>
+    </div>
+  </div>
+</div>
+
 <!-- Goods receipt confirmation modal -->
 <div class="modal-overlay" id="grModal" hidden>
   <div class="modal">
@@ -586,21 +603,27 @@ async function submitPR() {
   const items = chosen.map(x => ({ itemNo: x.itemNo, itemName: x.itemName, qty: x.qty, requestQty: state.qtyDraft2[x.row] }));
   state.submitting2 = true; render();
   try {
-    let prId;
+    let prId, date = new Date().toISOString().slice(0, 10);
     if (!CONFIG.APPS_SCRIPT_URL) {
       prId = 'PR' + String(++DEMO_PR_SEQ).padStart(4, '0');
-      const date = new Date().toISOString().slice(0, 10);
       items.forEach(it => DEMO_PR.push({ row: DEMO_PR.length + 2, prId, date, branch: state.branch, itemNo: it.itemNo, itemName: it.itemName, remainingQty: it.qty, requestQty: it.requestQty, grQty: null, receivedDate: '' }));
-      toast((state.demo ? 'Sample data — ' : '') + 'Purchase request ' + prId + ' submitted (on screen only, not saved to the sheet)');
+      if (state.demo) toast('Sample data — nothing was saved to a real sheet');
+      else toast('Recorded on screen only — set APPS_SCRIPT_URL to save to the sheet');
     } else {
       const data = await callScriptPost({ action: 'submitPR', branch: state.branch, items });
       prId = data.prId;
-      toast('Purchase request ' + prId + ' submitted');
     }
     state.selected2 = {}; state.qtyDraft2 = {};
     closeModal('prModal');
+    openPRSuccessModal(prId, date, items);
   } catch (err) { toast('Submit failed: ' + (err.message || err)); }
   finally { state.submitting2 = false; render(); }
+}
+function openPRSuccessModal(prId, date, items) {
+  $('prSuccessId').textContent = prId;
+  $('prSuccessDate').textContent = date;
+  $('prSuccessRows').innerHTML = items.map(it => `<tr><td>${escapeHTML(it.itemNo)}</td><td>${escapeHTML(it.itemName)}</td><td class="num">${escapeHTML(String(it.requestQty))}</td></tr>`).join('');
+  $('prSuccessModal').hidden = false;
 }
 
 /* ---------- saving: goods receipt ---------- */
@@ -862,6 +885,7 @@ $('rows2').addEventListener('change', e => {
 $('rows2').addEventListener('input', e => { const qi = e.target.closest('.qty-input'); if (qi) { state.qtyDraft2[qi.dataset.row] = qi.value; renderSelectBar(); } });
 $('prCancel').addEventListener('click', () => closeModal('prModal'));
 $('prConfirm').addEventListener('click', () => { if (!state.submitting2) submitPR(); });
+$('prSuccessClose').addEventListener('click', () => closeModal('prSuccessModal'));
 
 /* goods receipt */
 $('refresh3').addEventListener('click', () => loadPR(true).then(() => { state.lastUpdated3 = new Date().toLocaleString(); render(); }));
@@ -884,7 +908,7 @@ $('rows3').addEventListener('click', e => {
 $('grCancel').addEventListener('click', () => { closeModal('grModal'); pendingReceipt = null; });
 $('grConfirm').addEventListener('click', () => { if (pendingReceipt && !state.saving3) { const { pr, qty } = pendingReceipt; pendingReceipt = null; submitReceipt(pr, qty); } });
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal('prModal'); closeModal('grModal'); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal('prModal'); closeModal('prSuccessModal'); closeModal('grModal'); } });
 
 render();
 loadBranches(false);
