@@ -3,25 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
 <title>ตรวจสอบสต๊อกสินค้า</title>
 <style>
+  /* Always a plain white screen — the app no longer switches to a dark theme based on the
+     device/browser setting, so it looks the same (white) for everyone. */
   :root {
-    --bg: #f6f7f9; --surface: #ffffff; --surface-2: #f0f2f5; --border: #dfe3e8;
+    --bg: #ffffff; --surface: #ffffff; --surface-2: #f0f2f5; --border: #dfe3e8;
     --text: #1b2430; --muted: #66707d; --accent: #2456d6; --accent-ink: #ffffff;
     --ok-bg: #e4f5ea; --ok-ink: #14663a;
     --low-bg: #fff2d6; --low-ink: #8a5a00;
     --out-bg: #fde6e6; --out-ink: #a11d1d;
     --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #12161c; --surface: #1a2029; --surface-2: #232b36; --border: #303a47;
-      --text: #e8edf3; --muted: #98a3b1; --accent: #6d9bff; --accent-ink: #0d1522;
-      --ok-bg: #163a27; --ok-ink: #7fe0a8;
-      --low-bg: #402f0c; --low-ink: #f3c46b;
-      --out-bg: #452020; --out-ink: #ff9d9d;
-      --shadow: none;
-    }
+    color-scheme: light;
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -160,13 +154,49 @@
   .modal table th, .modal table td { padding: 8px 10px; }
   .modal .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 
+  /* Tablets (iPad portrait/landscape and similar) */
+  @media (max-width: 1024px) {
+    .wrap { padding: 20px 14px 90px; }
+    .tiles { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+    .cards { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .modal { max-width: 92vw; }
+  }
   @media (max-width: 760px) {
     .tiles.two { grid-template-columns: 1fr; }
   }
+  /* Phones */
   @media (max-width: 640px) {
+    .wrap { padding: 16px 12px 100px; }
+    h1 { font-size: 20px; }
+    h2.pagetitle { font-size: 18px; }
+    header.top { align-items: flex-start; }
+    .head-actions { width: 100%; }
+    .head-actions .btn { flex: 1; }
+    .tiles { grid-template-columns: 1fr; }
     .cards { grid-template-columns: repeat(2, 1fr); }
     th, td { padding: 10px 10px; }
     .hide-sm { display: none; }
+    .toolbar { flex-direction: column; align-items: stretch; }
+    .search { min-width: 0; }
+    .count { white-space: normal; }
+    .selectbar .inner { flex-direction: column; align-items: stretch; }
+    .selectbar .msg { text-align: center; }
+    .selectbar button { width: 100%; }
+    .modal { padding: 18px 16px 14px; max-height: 90vh; }
+    .modal .modal-actions { flex-direction: column-reverse; }
+    .modal .modal-actions .btn { width: 100%; margin-left: 0 !important; }
+    .qty-input { width: 76px; }
+  }
+  @media (max-width: 420px) {
+    .picker { padding: 22px 18px; margin-top: 6vh; }
+    .cards { grid-template-columns: repeat(2, 1fr); }
+    .card .n { font-size: 22px; }
+  }
+  /* Comfortable tap targets on touch devices (iPad/phone) */
+  @media (hover: none) and (pointer: coarse) {
+    .btn, .tile, th button, input[type="checkbox"] { min-height: 40px; }
+    input[type="checkbox"] { width: 20px; height: 20px; }
+    .qty-input, .reason-input, select, .search input { min-height: 40px; }
   }
 </style>
 </head>
@@ -753,6 +783,13 @@ async function loadBranches(fresh) {
     }
     state.loaded = true;
     if (state.branch && !state.branches.some(b => same(b, state.branch))) { state.branch = ''; state.view = 'branch'; }
+    // On a fresh page load (including the automatic refresh after a successful transaction), jump
+    // straight back to the dashboard for the last-used branch instead of making the person pick it again.
+    if (state.view === 'branch' && !state.branch) {
+      const saved = lsGet();
+      const match = saved && state.branches.find(b => same(b, saved));
+      if (match) { state.branch = match; state.view = 'dashboard'; loadItems(false, { overlay: false }); }
+    }
     if (!state.branches.length) banner('<strong>ไม่พบสาขา</strong> ตรวจสอบว่าแท็บที่ 2 มีคอลัมน์หัวข้อ "Branch" พร้อมรายชื่อสาขาด้านล่าง', true);
   } catch (err) {
     if (!state.branches.length) {
@@ -1274,7 +1311,7 @@ $('rows2').addEventListener('change', e => {
 $('rows2').addEventListener('input', e => { const qi = e.target.closest('.qty-input'); if (qi) { state.qtyDraft2[qi.dataset.row] = qi.value; renderSelectBar2(); } });
 $('prCancel').addEventListener('click', () => closeModal('prModal'));
 $('prConfirm').addEventListener('click', () => { if (!state.submitting2) submitPR(); });
-$('prSuccessClose').addEventListener('click', () => closeModal('prSuccessModal'));
+$('prSuccessClose').addEventListener('click', () => location.reload());
 
 /* goods receipt: mode choice */
 document.querySelectorAll('#receiptChoice [data-mode]').forEach(el => el.addEventListener('click', () => chooseReceiptMode(el.dataset.mode)));
@@ -1304,7 +1341,7 @@ $('rows3').addEventListener('click', e => {
 });
 $('grCancel').addEventListener('click', () => { closeModal('grModal'); pendingReceipt = null; });
 $('grConfirm').addEventListener('click', () => { if (pendingReceipt && !state.saving3) { const { pr, qty } = pendingReceipt; pendingReceipt = null; submitReceipt(pr, qty); } });
-$('grSuccessClose').addEventListener('click', () => closeModal('grSuccessModal'));
+$('grSuccessClose').addEventListener('click', () => location.reload());
 
 /* goods receipt: direct mode (no PR) */
 $('q4').addEventListener('input', e => { state.q4 = e.target.value; render(); });
@@ -1349,7 +1386,7 @@ $('rows5').addEventListener('input', e => { const qi = e.target.closest('.qty-in
 $('issueCancel').addEventListener('click', () => closeModal('issueModal'));
 $('issueConfirm').addEventListener('click', () => { if (!state.submitting5) submitIssue(); });
 $('issueReason').addEventListener('input', () => { if ($('issueReason').value.trim()) $('issueReasonHint').hidden = true; });
-$('issueSuccessClose').addEventListener('click', () => closeModal('issueSuccessModal'));
+$('issueSuccessClose').addEventListener('click', () => location.reload());
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeModal('prModal'); closeModal('prSuccessModal'); closeModal('grModal'); closeModal('directModal'); closeModal('grSuccessModal'); closeModal('issueModal'); closeModal('issueSuccessModal'); }
