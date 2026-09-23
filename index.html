@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Stock Check</title>
+<title>ตรวจสอบสต๊อกสินค้า</title>
 <style>
   :root {
     --bg: #f6f7f9; --surface: #ffffff; --surface-2: #f0f2f5; --border: #dfe3e8;
@@ -27,7 +27,7 @@
   [hidden] { display: none !important; }
   body {
     margin: 0; background: var(--bg); color: var(--text);
-    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans Thai", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
   .wrap { max-width: 1040px; margin: 0 auto; padding: 24px 16px 90px; }
   header.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
@@ -47,6 +47,16 @@
   .btn.primary:hover:not(:disabled) { filter: brightness(1.07); }
   .btn.small { padding: 5px 10px; font-size: 13px; }
   .btn.danger { border-color: var(--out-ink); color: var(--out-ink); }
+
+  /* Top loading bar */
+  #loadingBar { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 100; background: transparent; overflow: hidden; }
+  #loadingBar .fill { position: absolute; top: 0; left: 0; height: 100%; width: 40%; background: var(--accent); border-radius: 0 4px 4px 0;
+    animation: loadingSlide 1.1s ease-in-out infinite; }
+  @keyframes loadingSlide {
+    0% { left: -40%; width: 40%; }
+    50% { width: 60%; }
+    100% { left: 100%; width: 40%; }
+  }
 
   /* Branch picker */
   .picker { max-width: 420px; margin: 9vh auto 0; background: var(--surface); border: 1px solid var(--border);
@@ -94,7 +104,7 @@
   .scroll { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; }
   th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
-  th { background: var(--surface-2); font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); user-select: none; }
+  th { background: var(--surface-2); font-size: 12.5px; letter-spacing: .02em; color: var(--muted); user-select: none; }
   th button { all: unset; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
   th button:focus-visible { outline: 2px solid var(--accent); }
   th .arrow { font-size: 10px; opacity: .35; }
@@ -150,48 +160,49 @@
 </style>
 </head>
 <body>
+<div id="loadingBar" hidden><div class="fill"></div></div>
 <div class="wrap">
   <div id="banner" class="banner" hidden></div>
 
   <!-- STEP 1: choose branch -->
   <section id="view-branch" class="picker" hidden>
-    <h1>Stock Check</h1>
-    <p>Choose a branch to continue.</p>
-    <label for="branchSelect">Branch</label>
-    <select id="branchSelect" disabled><option value="">Loading branches…</option></select>
-    <button class="btn primary" id="continue" type="button" disabled>Continue</button>
-    <button class="btn retry" id="retry" type="button" hidden>Try again</button>
+    <h1>ตรวจสอบสต๊อกสินค้า</h1>
+    <p>เลือกสาขาเพื่อดำเนินการต่อ</p>
+    <label for="branchSelect">สาขา</label>
+    <select id="branchSelect" disabled><option value="">กำลังโหลดสาขา…</option></select>
+    <button class="btn primary" id="continue" type="button" disabled>ดำเนินการต่อ</button>
+    <button class="btn retry" id="retry" type="button" hidden>ลองใหม่อีกครั้ง</button>
   </section>
 
   <!-- STEP 2: dashboard -->
   <section id="view-dashboard" hidden>
     <header class="top">
       <div>
-        <h1>Stock Check</h1>
-        <div class="sub">Branch: <strong id="branchName0"></strong></div>
+        <h1>ตรวจสอบสต๊อกสินค้า</h1>
+        <div class="sub">สาขา: <strong id="branchName0"></strong></div>
       </div>
       <div class="head-actions">
-        <button class="btn" id="changeBranch0" type="button">&#8592; Change branch</button>
+        <button class="btn" id="changeBranch0" type="button">&#8592; เปลี่ยนสาขา</button>
       </div>
     </header>
     <div class="tiles">
       <button class="tile" type="button" data-goto="purchase">
         <div class="icon">&#128722;</div>
-        <div class="t">Request Purchase</div>
-        <div class="d">Select items and quantities to request from this branch's stock.</div>
-        <div class="n">Open &rarr;</div>
+        <div class="t">ขอซื้อสินค้า</div>
+        <div class="d">เลือกสินค้าและระบุจำนวนที่ต้องการขอซื้อจากสต๊อกของสาขานี้</div>
+        <div class="n">เปิด &rarr;</div>
       </button>
       <button class="tile" type="button" data-goto="receipt">
         <div class="icon">&#128230;</div>
-        <div class="t">Goods Receipt</div>
-        <div class="d">Record deliveries against submitted purchase requests.</div>
-        <div class="n">Open &rarr;</div>
+        <div class="t">รับสินค้า</div>
+        <div class="d">บันทึกการรับสินค้าตามใบขอซื้อที่ส่งไปแล้ว</div>
+        <div class="n">เปิด &rarr;</div>
       </button>
       <button class="tile" type="button" data-goto="inventory">
         <div class="icon">&#128203;</div>
-        <div class="t">Manage Inventory</div>
-        <div class="d">Check current stock and update quantities on hand.</div>
-        <div class="n">Open &rarr;</div>
+        <div class="t">จัดการสต๊อกสินค้า</div>
+        <div class="d">ตรวจสอบสต๊อกปัจจุบันและอัปเดตจำนวนคงเหลือ</div>
+        <div class="n">เปิด &rarr;</div>
       </button>
     </div>
   </section>
@@ -200,17 +211,17 @@
   <section id="view-inventory" hidden>
     <header class="top">
       <div>
-        <h2 class="pagetitle">Manage Inventory</h2>
-        <div class="sub">Branch: <strong id="branchName1"></strong> &middot; <span id="updated1"></span></div>
+        <h2 class="pagetitle">จัดการสต๊อกสินค้า</h2>
+        <div class="sub">สาขา: <strong id="branchName1"></strong> &middot; <span id="updated1"></span></div>
       </div>
       <div class="head-actions">
-        <button class="btn" id="toDash1" type="button">&#8592; Dashboard</button>
-        <button class="btn" id="refresh1" type="button">&#8635; Refresh</button>
+        <button class="btn" id="toDash1" type="button">&#8592; หน้าหลัก</button>
+        <button class="btn" id="refresh1" type="button">&#8635; รีเฟรช</button>
       </div>
     </header>
-    <section class="cards" id="cards1" aria-label="Stock summary"></section>
+    <section class="cards" id="cards1" aria-label="สรุปสต๊อกสินค้า"></section>
     <div class="toolbar">
-      <label class="search"><input id="q1" type="search" placeholder="Search by item no. or item name" autocomplete="off" aria-label="Search items"></label>
+      <label class="search"><input id="q1" type="search" placeholder="ค้นหาด้วยรหัสสินค้าหรือชื่อสินค้า" autocomplete="off" aria-label="ค้นหาสินค้า"></label>
       <span class="count" id="count1"></span>
     </div>
     <div class="table-box">
@@ -218,11 +229,11 @@
         <table>
           <thead>
             <tr>
-              <th data-key="itemNo" aria-sort="none"><button type="button">Item No <span class="arrow">&#9650;</span></button></th>
-              <th data-key="itemName" aria-sort="none"><button type="button">Item Name <span class="arrow">&#9650;</span></button></th>
-              <th data-key="qty" class="num" aria-sort="none"><button type="button">Quantity Remaining <span class="arrow">&#9650;</span></button></th>
-              <th class="hide-sm">Status</th>
-              <th class="actions">Update</th>
+              <th data-key="itemNo" aria-sort="none"><button type="button">รหัสสินค้า <span class="arrow">&#9650;</span></button></th>
+              <th data-key="itemName" aria-sort="none"><button type="button">ชื่อสินค้า <span class="arrow">&#9650;</span></button></th>
+              <th data-key="qty" class="num" aria-sort="none"><button type="button">จำนวนคงเหลือ <span class="arrow">&#9650;</span></button></th>
+              <th class="hide-sm">สถานะ</th>
+              <th class="actions">อัปเดต</th>
             </tr>
           </thead>
           <tbody id="rows1"></tbody>
@@ -236,16 +247,16 @@
   <section id="view-purchase" hidden>
     <header class="top">
       <div>
-        <h2 class="pagetitle">Request Purchase</h2>
-        <div class="sub">Branch: <strong id="branchName2"></strong> &middot; <span id="updated2"></span></div>
+        <h2 class="pagetitle">ขอซื้อสินค้า</h2>
+        <div class="sub">สาขา: <strong id="branchName2"></strong> &middot; <span id="updated2"></span></div>
       </div>
       <div class="head-actions">
-        <button class="btn" id="toDash2" type="button">&#8592; Dashboard</button>
-        <button class="btn" id="refresh2" type="button">&#8635; Refresh</button>
+        <button class="btn" id="toDash2" type="button">&#8592; หน้าหลัก</button>
+        <button class="btn" id="refresh2" type="button">&#8635; รีเฟรช</button>
       </div>
     </header>
     <div class="toolbar">
-      <label class="search"><input id="q2" type="search" placeholder="Search by item no. or item name" autocomplete="off" aria-label="Search items"></label>
+      <label class="search"><input id="q2" type="search" placeholder="ค้นหาด้วยรหัสสินค้าหรือชื่อสินค้า" autocomplete="off" aria-label="ค้นหาสินค้า"></label>
       <span class="count" id="count2"></span>
     </div>
     <div class="table-box">
@@ -254,10 +265,10 @@
           <thead>
             <tr>
               <th style="width:36px"></th>
-              <th data-key="itemNo" aria-sort="none"><button type="button">Item No <span class="arrow">&#9650;</span></button></th>
-              <th data-key="itemName" aria-sort="none"><button type="button">Item Name <span class="arrow">&#9650;</span></button></th>
-              <th data-key="qty" class="num" aria-sort="none"><button type="button">Quantity Remaining <span class="arrow">&#9650;</span></button></th>
-              <th class="num">Request Quantity</th>
+              <th data-key="itemNo" aria-sort="none"><button type="button">รหัสสินค้า <span class="arrow">&#9650;</span></button></th>
+              <th data-key="itemName" aria-sort="none"><button type="button">ชื่อสินค้า <span class="arrow">&#9650;</span></button></th>
+              <th data-key="qty" class="num" aria-sort="none"><button type="button">จำนวนคงเหลือ <span class="arrow">&#9650;</span></button></th>
+              <th class="num">จำนวนที่ขอซื้อ</th>
             </tr>
           </thead>
           <tbody id="rows2"></tbody>
@@ -271,16 +282,16 @@
   <section id="view-receipt" hidden>
     <header class="top">
       <div>
-        <h2 class="pagetitle">Goods Receipt</h2>
-        <div class="sub">Branch: <strong id="branchName3"></strong> &middot; <span id="updated3"></span></div>
+        <h2 class="pagetitle">รับสินค้า</h2>
+        <div class="sub">สาขา: <strong id="branchName3"></strong> &middot; <span id="updated3"></span></div>
       </div>
       <div class="head-actions">
-        <button class="btn" id="toDash3" type="button">&#8592; Dashboard</button>
-        <button class="btn" id="refresh3" type="button">&#8635; Refresh</button>
+        <button class="btn" id="toDash3" type="button">&#8592; หน้าหลัก</button>
+        <button class="btn" id="refresh3" type="button">&#8635; รีเฟรช</button>
       </div>
     </header>
     <div class="toolbar">
-      <button class="link-btn" id="toggleHistory" type="button">Show received history</button>
+      <button class="link-btn" id="toggleHistory" type="button">ดูประวัติการรับสินค้า</button>
       <span class="count" id="count3"></span>
     </div>
     <div class="table-box">
@@ -288,15 +299,15 @@
         <table>
           <thead>
             <tr>
-              <th>PR ID</th>
-              <th class="hide-sm">Date</th>
-              <th>Item No</th>
-              <th>Item Name</th>
-              <th class="num">Remaining Qty</th>
-              <th class="num">Request Qty</th>
-              <th class="num">Goods Receipt Qty</th>
-              <th class="hide-sm">Status</th>
-              <th class="actions">Receive</th>
+              <th>เลขที่ใบขอซื้อ</th>
+              <th class="hide-sm">วันที่</th>
+              <th>รหัสสินค้า</th>
+              <th>ชื่อสินค้า</th>
+              <th class="num">จำนวนคงเหลือ</th>
+              <th class="num">จำนวนที่ขอซื้อ</th>
+              <th class="num">จำนวนที่รับ</th>
+              <th class="hide-sm">สถานะ</th>
+              <th class="actions">รับสินค้า</th>
             </tr>
           </thead>
           <tbody id="rows3"></tbody>
@@ -310,17 +321,17 @@
 <!-- Purchase request confirmation modal -->
 <div class="modal-overlay" id="prModal" hidden>
   <div class="modal">
-    <h3>Confirm purchase request</h3>
-    <p class="hint">Please review before submitting. This will be recorded to Purchase_Request.</p>
+    <h3>ยืนยันคำขอซื้อสินค้า</h3>
+    <p class="hint">กรุณาตรวจสอบก่อนส่งคำขอ ข้อมูลนี้จะถูกบันทึกลงชีต Purchase_Request</p>
     <div class="scroll">
       <table>
-        <thead><tr><th>Item No</th><th>Item Name</th><th class="num">Request Qty</th></tr></thead>
+        <thead><tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th class="num">จำนวนที่ขอซื้อ</th></tr></thead>
         <tbody id="prModalRows"></tbody>
       </table>
     </div>
     <div class="modal-actions">
-      <button class="btn" id="prCancel" type="button">Cancel</button>
-      <button class="btn primary" id="prConfirm" type="button">Submit request</button>
+      <button class="btn" id="prCancel" type="button">ยกเลิก</button>
+      <button class="btn primary" id="prConfirm" type="button">ส่งคำขอ</button>
     </div>
   </div>
 </div>
@@ -328,16 +339,16 @@
 <!-- Purchase request success popup -->
 <div class="modal-overlay" id="prSuccessModal" hidden>
   <div class="modal">
-    <h3>&#9989; Purchase request submitted</h3>
-    <p class="hint">Recorded to <strong>Purchase_Request</strong> as <strong id="prSuccessId"></strong>, dated <span id="prSuccessDate"></span>.</p>
+    <h3>&#9989; ส่งคำขอซื้อสินค้าเรียบร้อยแล้ว</h3>
+    <p class="hint">บันทึกลงชีต <strong>Purchase_Request</strong> หมายเลข <strong id="prSuccessId"></strong> วันที่ <span id="prSuccessDate"></span></p>
     <div class="scroll">
       <table>
-        <thead><tr><th>Item No</th><th>Item Name</th><th class="num">Request Qty</th></tr></thead>
+        <thead><tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th class="num">จำนวนที่ขอซื้อ</th></tr></thead>
         <tbody id="prSuccessRows"></tbody>
       </table>
     </div>
     <div class="modal-actions">
-      <button class="btn primary" id="prSuccessClose" type="button">Done</button>
+      <button class="btn primary" id="prSuccessClose" type="button">เสร็จสิ้น</button>
     </div>
   </div>
 </div>
@@ -345,11 +356,22 @@
 <!-- Goods receipt confirmation modal -->
 <div class="modal-overlay" id="grModal" hidden>
   <div class="modal">
-    <h3>Confirm goods receipt</h3>
+    <h3>ยืนยันการรับสินค้า</h3>
     <p class="hint" id="grModalHint"></p>
     <div class="modal-actions">
-      <button class="btn" id="grCancel" type="button">Cancel</button>
-      <button class="btn primary" id="grConfirm" type="button">Confirm receipt</button>
+      <button class="btn" id="grCancel" type="button">ยกเลิก</button>
+      <button class="btn primary" id="grConfirm" type="button">ยืนยันการรับสินค้า</button>
+    </div>
+  </div>
+</div>
+
+<!-- Goods receipt success popup -->
+<div class="modal-overlay" id="grSuccessModal" hidden>
+  <div class="modal">
+    <h3>&#9989; บันทึกการรับสินค้าเรียบร้อยแล้ว</h3>
+    <p class="hint" id="grSuccessHint"></p>
+    <div class="modal-actions">
+      <button class="btn primary" id="grSuccessClose" type="button">เสร็จสิ้น</button>
     </div>
   </div>
 </div>
@@ -368,7 +390,7 @@ const CONFIG = {
   SHEET_URL: '',
   BRANCH_TAB_NAME: '',
 
-  LOW_STOCK_THRESHOLD: 10,   // quantity at or below this = "Low stock"
+  LOW_STOCK_THRESHOLD: 10,   // quantity at or below this = "low stock"
   AUTO_REFRESH_SECONDS: 0    // 0 = off
 };
 /* ================================================================ */
@@ -403,11 +425,19 @@ const LS_KEY = 'stockcheck.branch';
 function lsGet() { try { return localStorage.getItem(LS_KEY) || ''; } catch (e) { return ''; } }
 function lsSet(v) { try { localStorage.setItem(LS_KEY, v); } catch (e) {} }
 
+/* ---------- loading bar ---------- */
+let busyCount = 0;
+function setBusy(on) {
+  busyCount = Math.max(0, busyCount + (on ? 1 : -1));
+  $('loadingBar').hidden = busyCount === 0;
+}
+async function withBusy(promise) { setBusy(true); try { return await promise; } finally { setBusy(false); } }
+
 /* ---------- helpers ---------- */
 const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 const same = (a, b) => String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
 function statusOf(qty) { return qty <= 0 ? 'out' : qty <= CONFIG.LOW_STOCK_THRESHOLD ? 'low' : 'ok'; }
-const STATUS_LABEL = { ok: 'In stock', low: 'Low stock', out: 'Out of stock' };
+const STATUS_LABEL = { ok: 'มีสินค้า', low: 'สินค้าใกล้หมด', out: 'สินค้าหมด' };
 function escapeHTML(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.classList.add('show');
@@ -445,7 +475,7 @@ function findCols(headers) {
   };
   const labels = { branch: 'Branch', itemNo: 'Item No', itemName: 'Item Name', qty: 'Quantity Remaining' };
   const missing = Object.keys(cols).filter(k => cols[k] < 0).map(k => labels[k]);
-  if (missing.length) throw new Error('The stock tab (first tab) is missing column header(s): ' + missing.join(', ') + '.');
+  if (missing.length) throw new Error('แท็บสต๊อก (แท็บที่ 1) ขาดหัวข้อคอลัมน์: ' + missing.join(', '));
   return cols;
 }
 
@@ -453,14 +483,14 @@ function findCols(headers) {
 async function fetchCSV(id, extra) {
   const url = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv${extra || ''}&_=${Date.now()}`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error('Could not read the sheet (HTTP ' + res.status + '). Check sharing and the tab name.');
+  if (!res.ok) throw new Error('ไม่สามารถอ่านชีตได้ (HTTP ' + res.status + ') ตรวจสอบการแชร์และชื่อแท็บ');
   const text = await res.text();
-  if (/^\s*<(!doctype|html)/i.test(text)) throw new Error('Google returned a sign-in page. Set sharing to "Anyone with the link can view".');
+  if (/^\s*<(!doctype|html)/i.test(text)) throw new Error('Google ส่งหน้าเข้าสู่ระบบกลับมา ตั้งค่าการแชร์เป็น "ทุกคนที่มีลิงก์สามารถดูได้"');
   return parseCSV(text).filter(r => r.some(c => c.trim() !== ''));
 }
 async function loadFromSheet() {
   const m = CONFIG.SHEET_URL.match(/\/d\/([a-zA-Z0-9_-]+)/);
-  if (!m) throw new Error('SHEET_URL does not look like a Google Sheets link.');
+  if (!m) throw new Error('SHEET_URL ไม่ใช่ลิงก์ Google Sheets ที่ถูกต้อง');
   const gid = (CONFIG.SHEET_URL.match(/[#&?]gid=(\d+)/) || [])[1];
   const stock = await fetchCSV(m[1], gid ? '&gid=' + gid : '');
   let items = [];
@@ -476,7 +506,7 @@ async function loadFromSheet() {
     const rows = await fetchCSV(m[1], '&sheet=' + encodeURIComponent(CONFIG.BRANCH_TAB_NAME));
     if (rows.length) {
       const col = rows[0].map(norm).findIndex(x => x === 'branch' || x.includes('branch'));
-      if (col < 0) throw new Error('No column with the header "Branch" found on the tab "' + CONFIG.BRANCH_TAB_NAME + '".');
+      if (col < 0) throw new Error('ไม่พบคอลัมน์หัวข้อ "Branch" บนแท็บ "' + CONFIG.BRANCH_TAB_NAME + '"');
       branches = rows.slice(1).map(r => (r[col] || '').trim()).filter(Boolean);
     }
   } else branches = items.map(x => x.branch).filter(Boolean);
@@ -494,23 +524,23 @@ async function parseScriptResponse(res) {
   let data;
   try { data = JSON.parse(text); }
   catch (e) {
-    throw new Error('Google did not return data (it sent a web page instead). This usually means the Apps Script deployment needs to be redeployed as a new version, or "Who has access" is not set to "Anyone". Check the Apps Script editor’s Executions log for the exact error.');
+    throw new Error('Google ไม่ได้ส่งข้อมูลกลับมา (ได้รับหน้าเว็บแทน) มักเกิดจากต้อง Deploy สคริปต์เป็นเวอร์ชันใหม่ หรือ "Who has access" ไม่ได้ตั้งเป็น "Anyone" ตรวจสอบข้อความ error ที่แท็บ Executions ในหน้า Apps Script');
   }
-  if (!data.ok) throw new Error(data.error || 'Apps Script returned an error.');
+  if (!data.ok) throw new Error(data.error || 'Apps Script ส่งข้อผิดพลาดกลับมา');
   return data;
 }
 async function callScriptGet(params) {
   const q = Object.entries(Object.assign({ token: CONFIG.TOKEN, _: Date.now() }, params))
     .map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&');
   const sep = CONFIG.APPS_SCRIPT_URL.includes('?') ? '&' : '?';
-  const res = await fetch(CONFIG.APPS_SCRIPT_URL + sep + q);
+  const res = await withBusy(fetch(CONFIG.APPS_SCRIPT_URL + sep + q));
   return parseScriptResponse(res);
 }
 async function callScriptPost(body) {
-  const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
+  const res = await withBusy(fetch(CONFIG.APPS_SCRIPT_URL, {
     method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(Object.assign({ token: CONFIG.TOKEN }, body))
-  });
+  }));
   return parseScriptResponse(res);
 }
 const mapItems = list => list.map(x => ({ row: x.row, branch: String(x.branch), itemNo: String(x.itemNo), itemName: String(x.itemName), qty: toNumber(x.qty) }));
@@ -529,29 +559,29 @@ async function loadBranches(fresh) {
       state.branches = uniq(data.branches); state.demo = false; banner('');
       cacheSet(state.branches);
     } else if (CONFIG.SHEET_URL) {
-      const data = await loadFromSheet(); state.demo = false;
+      const data = await withBusy(loadFromSheet()); state.demo = false;
       state.items = data.items; state.branches = uniq(data.branches);
-      banner('Read-only mode: add an <code>APPS_SCRIPT_URL</code> to use Request Purchase and Goods Receipt, and to save quantity updates.');
+      banner('โหมดอ่านอย่างเดียว: เพิ่ม <code>APPS_SCRIPT_URL</code> เพื่อใช้เมนูขอซื้อสินค้าและรับสินค้า และเพื่อบันทึกการแก้ไขจำนวนสต๊อกลงชีตจริง');
     } else {
       state.items = JSON.parse(JSON.stringify(DEMO_ITEMS)); state.branches = DEMO_BRANCHES.slice(); state.demo = true;
-      banner('Showing <strong>sample data</strong>. Paste your Apps Script URL into <code>CONFIG.APPS_SCRIPT_URL</code> at the top of this file to use your real sheet.');
+      banner('กำลังแสดง <strong>ข้อมูลตัวอย่าง</strong> ใส่ Apps Script URL ของคุณใน <code>CONFIG.APPS_SCRIPT_URL</code> ที่ด้านบนของไฟล์นี้ เพื่อใช้กับชีตจริงของคุณ');
     }
     state.loaded = true;
     if (state.branch && !state.branches.some(b => same(b, state.branch))) { state.branch = ''; state.view = 'branch'; }
-    if (!state.branches.length) banner('<strong>No branches found.</strong> Check that the second tab has a column headed "Branch" with names below it.', true);
+    if (!state.branches.length) banner('<strong>ไม่พบสาขา</strong> ตรวจสอบว่าแท็บที่ 2 มีคอลัมน์หัวข้อ "Branch" พร้อมรายชื่อสาขาด้านล่าง', true);
   } catch (err) {
     if (!state.branches.length) {
       state.loaded = false;
-      banner('<strong>Could not load data.</strong> ' + escapeHTML(err.message || err), true);
+      banner('<strong>ไม่สามารถโหลดข้อมูลได้</strong> ' + escapeHTML(err.message || err), true);
       $('retry').hidden = false;
-    } else toast('Could not refresh the branch list. Showing the last saved list.');
+    } else toast('ไม่สามารถรีเฟรชรายชื่อสาขาได้ กำลังแสดงรายการล่าสุดที่บันทึกไว้');
   } finally { render(); }
 }
 
 /* ---------- Step 2: stock items (Manage Inventory + Request Purchase share this) ---------- */
 async function loadItems(manual) {
   if (!CONFIG.APPS_SCRIPT_URL) {
-    if (manual) toast('Stock refreshed');
+    if (manual) toast('รีเฟรชสต๊อกแล้ว');
     render(); return;
   }
   const id = ++state.reqId;
@@ -560,9 +590,9 @@ async function loadItems(manual) {
     const data = await callScriptGet({ action: 'items', branch: state.branch });
     if (id !== state.reqId) return;
     state.items = mapItems(data.items); banner('');
-    if (manual) toast('Stock refreshed');
+    if (manual) toast('รีเฟรชสต๊อกแล้ว');
   } catch (err) {
-    if (id === state.reqId) banner('<strong>Could not load stock.</strong> ' + escapeHTML(err.message || err), true);
+    if (id === state.reqId) banner('<strong>ไม่สามารถโหลดสต๊อกสินค้าได้</strong> ' + escapeHTML(err.message || err), true);
   } finally { if (id === state.reqId) { state.itemsLoading = false; render(); } }
 }
 
@@ -571,7 +601,7 @@ async function loadPR(manual) {
   state.editing3 = null;
   if (!CONFIG.APPS_SCRIPT_URL) {
     state.prList = state.demo ? DEMO_PR.filter(x => same(x.branch, state.branch)) : [];
-    if (manual) toast('Refreshed'); render(); return;
+    if (manual) toast('รีเฟรชแล้ว'); render(); return;
   }
   state.prLoading = true; render();
   try {
@@ -582,24 +612,24 @@ async function loadPR(manual) {
       grQty: x.grQty === '' || x.grQty === null || x.grQty === undefined ? null : toNumber(x.grQty), receivedDate: x.receivedDate || ''
     }));
     banner('');
-    if (manual) toast('Refreshed');
+    if (manual) toast('รีเฟรชแล้ว');
   } catch (err) {
-    banner('<strong>Could not load purchase requests.</strong> ' + escapeHTML(err.message || err), true);
+    banner('<strong>ไม่สามารถโหลดรายการขอซื้อสินค้าได้</strong> ' + escapeHTML(err.message || err), true);
   } finally { state.prLoading = false; render(); }
 }
 
 /* ---------- saving: inventory qty ---------- */
 async function saveQty(item, newQty) {
-  if (!Number.isFinite(newQty) || newQty < 0) { toast('Enter a number that is 0 or more.'); return false; }
+  if (!Number.isFinite(newQty) || newQty < 0) { toast('กรุณาระบุตัวเลขที่มากกว่าหรือเท่ากับ 0'); return false; }
   if (!CONFIG.APPS_SCRIPT_URL) {
-    item.qty = newQty; toast(state.demo ? 'Updated on screen (sample data)' : 'Updated on screen only — not saved to the sheet');
+    item.qty = newQty; toast(state.demo ? 'อัปเดตบนหน้าจอแล้ว (ข้อมูลตัวอย่าง)' : 'อัปเดตบนหน้าจอเท่านั้น — ยังไม่ได้บันทึกลงชีต');
     return true;
   }
   state.saving1 = true; render();
   try {
-    const data = await callScriptPost({ action: 'update', row: item.row, branch: item.branch, itemNo: item.itemNo, qty: newQty });
-    item.qty = newQty; toast('Saved to Google Sheet'); return true;
-  } catch (err) { toast('Save failed: ' + (err.message || err)); return false; }
+    await callScriptPost({ action: 'update', row: item.row, branch: item.branch, itemNo: item.itemNo, qty: newQty });
+    item.qty = newQty; toast('บันทึกลง Google ชีตแล้ว'); return true;
+  } catch (err) { toast('บันทึกไม่สำเร็จ: ' + (err.message || err)); return false; }
   finally { state.saving1 = false; }
 }
 
@@ -613,8 +643,7 @@ async function submitPR() {
     if (!CONFIG.APPS_SCRIPT_URL) {
       prId = 'PR' + String(++DEMO_PR_SEQ).padStart(4, '0');
       items.forEach(it => DEMO_PR.push({ row: DEMO_PR.length + 2, prId, date, branch: state.branch, itemNo: it.itemNo, itemName: it.itemName, remainingQty: it.qty, requestQty: it.requestQty, grQty: null, receivedDate: '' }));
-      if (state.demo) toast('Sample data — nothing was saved to a real sheet');
-      else toast('Recorded on screen only — set APPS_SCRIPT_URL to save to the sheet');
+      toast(state.demo ? 'ข้อมูลตัวอย่าง — ยังไม่ได้บันทึกลงชีตจริง' : 'บันทึกบนหน้าจอเท่านั้น — ตั้งค่า APPS_SCRIPT_URL เพื่อบันทึกลงชีต');
     } else {
       const data = await callScriptPost({ action: 'submitPR', branch: state.branch, items });
       prId = data.prId;
@@ -622,7 +651,7 @@ async function submitPR() {
     state.selected2 = {}; state.qtyDraft2 = {};
     closeModal('prModal');
     openPRSuccessModal(prId, date, items);
-  } catch (err) { toast('Submit failed: ' + (err.message || err)); }
+  } catch (err) { toast('ส่งคำขอไม่สำเร็จ: ' + (err.message || err)); }
   finally { state.submitting2 = false; render(); }
 }
 function openPRSuccessModal(prId, date, items) {
@@ -641,16 +670,20 @@ async function submitReceipt(pr, qty) {
       const stockItem = state.items.find(x => same(x.branch, pr.branch) && x.itemNo === pr.itemNo);
       if (stockItem) stockItem.qty += qty;
       if (!state.prShowHistory) state.prList = state.prList.filter(x => x !== pr);
-      toast('Receipt recorded (on screen only, not saved to the sheet)');
+      toast(state.demo ? 'ข้อมูลตัวอย่าง — ยังไม่ได้บันทึกลงชีตจริง' : 'บันทึกบนหน้าจอเท่านั้น — ยังไม่ได้บันทึกลงชีต');
     } else {
       await callScriptPost({ action: 'receiveGoods', row: pr.row, prId: pr.prId, branch: pr.branch, itemNo: pr.itemNo, qty });
       pr.grQty = qty; pr.receivedDate = new Date().toISOString().slice(0, 10);
-      toast('Goods receipt saved to Google Sheet');
       if (!state.prShowHistory) state.prList = state.prList.filter(x => x !== pr);
     }
     state.editing3 = null; closeModal('grModal');
-  } catch (err) { toast('Save failed: ' + (err.message || err)); }
+    openGRSuccessModal(pr, qty);
+  } catch (err) { toast('บันทึกไม่สำเร็จ: ' + (err.message || err)); }
   finally { state.saving3 = false; render(); }
+}
+function openGRSuccessModal(pr, qty) {
+  $('grSuccessHint').textContent = `บันทึกจำนวนรับ ${qty} รายการ ${pr.itemNo} (${pr.itemName}) ใบขอซื้อ ${pr.prId} และเพิ่มเข้าจำนวนคงเหลือของสาขา ${pr.branch} เรียบร้อยแล้ว`;
+  $('grSuccessModal').hidden = false;
 }
 
 /* ---------- shared table helpers ---------- */
@@ -674,11 +707,11 @@ function applySort(theadEl, sort) {
 function renderBranchView() {
   const sel = $('branchSelect'); const cont = $('continue');
   if (!state.loaded) {
-    sel.innerHTML = `<option value="">${$('retry').hidden ? 'Loading branches…' : 'Could not load branches'}</option>`;
+    sel.innerHTML = `<option value="">${$('retry').hidden ? 'กำลังโหลดสาขา…' : 'ไม่สามารถโหลดสาขาได้'}</option>`;
     sel.disabled = true; cont.disabled = true; return;
   }
   const want = sel.value || state.branch || lsGet();
-  sel.innerHTML = '<option value="">Choose a branch…</option>' + state.branches.map(b => `<option value="${escapeHTML(b)}">${escapeHTML(b)}</option>`).join('');
+  sel.innerHTML = '<option value="">เลือกสาขา…</option>' + state.branches.map(b => `<option value="${escapeHTML(b)}">${escapeHTML(b)}</option>`).join('');
   const match = state.branches.find(b => same(b, want));
   sel.value = match || '';
   sel.disabled = !state.branches.length; cont.disabled = !sel.value;
@@ -691,13 +724,13 @@ function renderDashboard() { $('branchName0').textContent = state.branch; }
 function renderCards(all) {
   const c = { all: all.length, ok: 0, low: 0, out: 0 };
   all.forEach(x => c[statusOf(x.qty)]++);
-  const defs = [['all', 'All items', ''], ['ok', 'In stock', 'ok'], ['low', 'Low stock', 'low'], ['out', 'Out of stock', 'out']];
+  const defs = [['all', 'สินค้าทั้งหมด', ''], ['ok', 'มีสินค้า', 'ok'], ['low', 'สินค้าใกล้หมด', 'low'], ['out', 'สินค้าหมด', 'out']];
   $('cards1').innerHTML = defs.map(([k, label, cls]) =>
     `<button type="button" class="card ${cls}" data-status="${k}" aria-pressed="${state.status1 === k}"><div class="n">${c[k]}</div><div class="l">${label}</div></button>`).join('');
 }
 function renderInventory() {
   $('branchName1').textContent = state.branch;
-  $('updated1').textContent = state.itemsLoading ? 'Loading…' : 'Last updated ' + (state.lastUpdated1 || 'just now');
+  $('updated1').textContent = state.itemsLoading ? 'กำลังโหลด…' : 'อัปเดตล่าสุด ' + (state.lastUpdated1 || 'เมื่อสักครู่');
   const loading = state.itemsLoading;
   const all = loading ? [] : branchItems1(state.items);
   renderCards(all);
@@ -705,25 +738,25 @@ function renderInventory() {
   let list = loading ? [] : all.filter(x => (state.status1 === 'all' || statusOf(x.qty) === state.status1) &&
     (!q || x.itemNo.toLowerCase().includes(q) || x.itemName.toLowerCase().includes(q)));
   list = sortList(list, state.sort1);
-  $('count1').textContent = loading ? '' : list.length + ' of ' + all.length + ' items';
+  $('count1').textContent = loading ? '' : list.length + ' จาก ' + all.length + ' รายการ';
   const tbody = $('rows1'); tbody.innerHTML = '';
   list.forEach(item => {
     const tr = document.createElement('tr');
     const st = statusOf(item.qty);
     const editing = state.editing1 === item.row;
     const qtyCell = editing
-      ? `<input class="qty-input" type="number" min="0" step="any" value="${item.qty}" aria-label="New quantity for ${escapeHTML(item.itemNo)}">`
+      ? `<input class="qty-input" type="number" min="0" step="any" value="${item.qty}" aria-label="จำนวนใหม่สำหรับ ${escapeHTML(item.itemNo)}">`
       : `${item.qty.toLocaleString()}`;
     const actions = editing
-      ? `<button class="btn primary small" data-act="save" ${state.saving1 ? 'disabled' : ''}>${state.saving1 ? 'Saving…' : 'Save'}</button><button class="btn small" data-act="cancel" ${state.saving1 ? 'disabled' : ''}>Cancel</button>`
-      : `<button class="btn small" data-act="edit" ${state.saving1 ? 'disabled' : ''}>Update qty</button>`;
+      ? `<button class="btn primary small" data-act="save" ${state.saving1 ? 'disabled' : ''}>${state.saving1 ? 'กำลังบันทึก…' : 'บันทึก'}</button><button class="btn small" data-act="cancel" ${state.saving1 ? 'disabled' : ''}>ยกเลิก</button>`
+      : `<button class="btn small" data-act="edit" ${state.saving1 ? 'disabled' : ''}>อัปเดตจำนวน</button>`;
     tr.dataset.row = item.row;
     tr.innerHTML = `<td>${escapeHTML(item.itemNo)}</td><td class="name">${escapeHTML(item.itemName)}</td>` +
       `<td class="num qty">${qtyCell}</td><td class="hide-sm"><span class="badge ${st}">${STATUS_LABEL[st]}</span></td><td class="actions">${actions}</td>`;
     tbody.appendChild(tr);
   });
   const empty = $('empty1'); empty.hidden = list.length > 0;
-  if (!list.length) empty.textContent = loading ? 'Loading items…' : all.length ? 'No items match your search or filter.' : 'No items found for this branch.';
+  if (!list.length) empty.textContent = loading ? 'กำลังโหลดรายการสินค้า…' : all.length ? 'ไม่พบรายการที่ตรงกับการค้นหาหรือตัวกรอง' : 'ไม่พบรายการสินค้าสำหรับสาขานี้';
   applySort(document.querySelector('#view-inventory thead'), state.sort1);
   const inp = tbody.querySelector('.qty-input'); if (inp) { inp.focus(); inp.select(); }
 }
@@ -731,28 +764,28 @@ function renderInventory() {
 /* ---------- rendering: request purchase ---------- */
 function renderPurchase() {
   $('branchName2').textContent = state.branch;
-  $('updated2').textContent = state.itemsLoading ? 'Loading…' : 'Last updated ' + (state.lastUpdated1 || 'just now');
+  $('updated2').textContent = state.itemsLoading ? 'กำลังโหลด…' : 'อัปเดตล่าสุด ' + (state.lastUpdated1 || 'เมื่อสักครู่');
   const loading = state.itemsLoading;
   const all = loading ? [] : branchItems1(state.items);
   const q = state.q2.trim().toLowerCase();
   let list = loading ? [] : all.filter(x => !q || x.itemNo.toLowerCase().includes(q) || x.itemName.toLowerCase().includes(q));
   list = sortList(list, state.sort2);
   const selCount = Object.keys(state.selected2).filter(k => state.selected2[k]).length;
-  $('count2').textContent = loading ? '' : list.length + ' of ' + all.length + ' items' + (selCount ? ' · ' + selCount + ' selected' : '');
+  $('count2').textContent = loading ? '' : list.length + ' จาก ' + all.length + ' รายการ' + (selCount ? ' · เลือกแล้ว ' + selCount + ' รายการ' : '');
   const tbody = $('rows2'); tbody.innerHTML = '';
   list.forEach(item => {
     const tr = document.createElement('tr');
     const checked = !!state.selected2[item.row];
     if (checked) tr.className = 'selected';
     const draft = state.qtyDraft2[item.row];
-    tr.innerHTML = `<td><input type="checkbox" data-row="${item.row}" ${checked ? 'checked' : ''} aria-label="Select ${escapeHTML(item.itemNo)}"></td>` +
+    tr.innerHTML = `<td><input type="checkbox" data-row="${item.row}" ${checked ? 'checked' : ''} aria-label="เลือก ${escapeHTML(item.itemNo)}"></td>` +
       `<td>${escapeHTML(item.itemNo)}</td><td class="name">${escapeHTML(item.itemName)}</td>` +
       `<td class="num">${item.qty.toLocaleString()}</td>` +
       `<td class="num"><input class="qty-input" type="number" min="1" step="any" data-row="${item.row}" value="${draft !== undefined ? draft : ''}" ${checked ? '' : 'disabled'} placeholder="0"></td>`;
     tbody.appendChild(tr);
   });
   const empty = $('empty2'); empty.hidden = list.length > 0;
-  if (!list.length) empty.textContent = loading ? 'Loading items…' : all.length ? 'No items match your search.' : 'No items found for this branch.';
+  if (!list.length) empty.textContent = loading ? 'กำลังโหลดรายการสินค้า…' : all.length ? 'ไม่พบรายการที่ตรงกับการค้นหา' : 'ไม่พบรายการสินค้าสำหรับสาขานี้';
   applySort(document.querySelector('#view-purchase thead'), state.sort2);
   renderSelectBar();
 }
@@ -764,11 +797,11 @@ function renderSelectBar() {
   if (!show) { if (bar) bar.remove(); return; }
   if (!bar) {
     bar = document.createElement('div'); bar.className = 'selectbar'; bar.id = 'selectbar2';
-    bar.innerHTML = `<div class="inner"><div class="msg"></div><button class="btn primary" id="prReview" type="button">Review &amp; submit</button></div>`;
+    bar.innerHTML = `<div class="inner"><div class="msg"></div><button class="btn primary" id="prReview" type="button">ตรวจสอบและส่งคำขอ</button></div>`;
     document.body.appendChild(bar);
     bar.querySelector('#prReview').addEventListener('click', openPRModal);
   }
-  bar.querySelector('.msg').innerHTML = `<strong>${items.length}</strong> item(s) selected` + (valid.length < items.length ? ' — enter a quantity for each' : '');
+  bar.querySelector('.msg').innerHTML = `เลือกแล้ว <strong>${items.length}</strong> รายการ` + (valid.length < items.length ? ' — กรุณาระบุจำนวนให้ครบทุกรายการ' : '');
   bar.querySelector('#prReview').disabled = valid.length === 0 || valid.length !== items.length;
 }
 function openPRModal() {
@@ -781,23 +814,23 @@ function closeModal(id) { $(id).hidden = true; }
 /* ---------- rendering: goods receipt ---------- */
 function renderReceipt() {
   $('branchName3').textContent = state.branch;
-  $('updated3').textContent = state.prLoading ? 'Loading…' : 'Last updated ' + (state.lastUpdated3 || 'just now');
-  $('toggleHistory').textContent = state.prShowHistory ? 'Show pending only' : 'Show received history';
+  $('updated3').textContent = state.prLoading ? 'กำลังโหลด…' : 'อัปเดตล่าสุด ' + (state.lastUpdated3 || 'เมื่อสักครู่');
+  $('toggleHistory').textContent = state.prShowHistory ? 'ดูเฉพาะรายการค้างรับ' : 'ดูประวัติการรับสินค้า';
   const loading = state.prLoading;
   const list = loading ? [] : state.prList;
-  $('count3').textContent = loading ? '' : list.length + ' request' + (list.length === 1 ? '' : 's');
+  $('count3').textContent = loading ? '' : list.length + ' รายการ';
   const tbody = $('rows3'); tbody.innerHTML = '';
   list.forEach(pr => {
     const editing = state.editing3 === pr.row;
     const received = pr.grQty !== null;
-    const statusCell = received ? `<span class="badge received">Received</span>` : `<span class="badge pending">Pending</span>`;
+    const statusCell = received ? `<span class="badge received">รับแล้ว</span>` : `<span class="badge pending">รอรับสินค้า</span>`;
     const grCell = received ? pr.grQty.toLocaleString()
-      : editing ? `<input class="qty-input" type="number" min="1" step="any" value="${pr.requestQty}" aria-label="Goods receipt qty for ${escapeHTML(pr.prId)}">`
+      : editing ? `<input class="qty-input" type="number" min="1" step="any" value="${pr.requestQty}" aria-label="จำนวนที่รับสำหรับ ${escapeHTML(pr.prId)}">`
       : '—';
     let actions;
     if (received) actions = '';
-    else if (editing) actions = `<button class="btn primary small" data-act="save" ${state.saving3 ? 'disabled' : ''}>${state.saving3 ? 'Saving…' : 'Confirm'}</button><button class="btn small" data-act="cancel" ${state.saving3 ? 'disabled' : ''}>Cancel</button>`;
-    else actions = `<button class="btn small" data-act="edit">Receive</button>`;
+    else if (editing) actions = `<button class="btn primary small" data-act="save" ${state.saving3 ? 'disabled' : ''}>${state.saving3 ? 'กำลังบันทึก…' : 'ยืนยัน'}</button><button class="btn small" data-act="cancel" ${state.saving3 ? 'disabled' : ''}>ยกเลิก</button>`;
+    else actions = `<button class="btn small" data-act="edit">รับสินค้า</button>`;
     const tr = document.createElement('tr'); tr.dataset.row = pr.row;
     tr.innerHTML = `<td>${escapeHTML(pr.prId)}</td><td class="hide-sm">${escapeHTML(pr.date)}</td><td>${escapeHTML(pr.itemNo)}</td><td class="name">${escapeHTML(pr.itemName)}</td>` +
       `<td class="num">${pr.remainingQty.toLocaleString()}</td><td class="num">${pr.requestQty.toLocaleString()}</td><td class="num">${grCell}</td>` +
@@ -805,7 +838,7 @@ function renderReceipt() {
     tbody.appendChild(tr);
   });
   const empty = $('empty3'); empty.hidden = list.length > 0;
-  if (!list.length) empty.textContent = loading ? 'Loading…' : state.prShowHistory ? 'No purchase requests for this branch yet.' : 'No pending requests. Everything has been received.';
+  if (!list.length) empty.textContent = loading ? 'กำลังโหลด…' : state.prShowHistory ? 'ยังไม่มีรายการขอซื้อสินค้าสำหรับสาขานี้' : 'ไม่มีรายการค้างรับ — รับสินค้าครบทุกรายการแล้ว';
   const inp = tbody.querySelector('.qty-input'); if (inp) { inp.focus(); inp.select(); }
 }
 
@@ -854,7 +887,7 @@ document.querySelector('#view-inventory thead').addEventListener('click', e => {
 async function commit1(tr) {
   const item = state.items.find(x => String(x.row) === tr.dataset.row);
   const raw = tr.querySelector('.qty-input').value;
-  if (raw.trim() === '') { toast('Enter a quantity first.'); return; }
+  if (raw.trim() === '') { toast('กรุณาระบุจำนวนก่อน'); return; }
   const ok = await saveQty(item, Number(raw)); if (ok) { state.editing1 = null; state.lastUpdated1 = new Date().toLocaleString(); } render();
 }
 $('rows1').addEventListener('click', e => {
@@ -905,16 +938,17 @@ $('rows3').addEventListener('click', e => {
   else if (act === 'cancel') { state.editing3 = null; render(); }
   else if (act === 'save') {
     const raw = tr.querySelector('.qty-input').value;
-    if (raw.trim() === '' || Number(raw) <= 0) { toast('Enter a quantity greater than 0.'); return; }
+    if (raw.trim() === '' || Number(raw) <= 0) { toast('กรุณาระบุจำนวนที่มากกว่า 0'); return; }
     pendingReceipt = { pr, qty: Number(raw) };
-    $('grModalHint').textContent = `Record ${raw} received for ${pr.itemNo} (${pr.itemName}), PR ${pr.prId}. This adds to Quantity Remaining for ${pr.branch}.`;
+    $('grModalHint').textContent = `บันทึกจำนวนรับ ${raw} รายการ ${pr.itemNo} (${pr.itemName}) ใบขอซื้อ ${pr.prId} จำนวนนี้จะถูกบวกเพิ่มเข้าจำนวนคงเหลือของสาขา ${pr.branch}`;
     $('grModal').hidden = false;
   }
 });
 $('grCancel').addEventListener('click', () => { closeModal('grModal'); pendingReceipt = null; });
 $('grConfirm').addEventListener('click', () => { if (pendingReceipt && !state.saving3) { const { pr, qty } = pendingReceipt; pendingReceipt = null; submitReceipt(pr, qty); } });
+$('grSuccessClose').addEventListener('click', () => closeModal('grSuccessModal'));
 
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal('prModal'); closeModal('prSuccessModal'); closeModal('grModal'); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeModal('prModal'); closeModal('prSuccessModal'); closeModal('grModal'); closeModal('grSuccessModal'); } });
 
 render();
 loadBranches(false);
