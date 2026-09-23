@@ -202,7 +202,7 @@
 </head>
 <body>
 <div id="loadingBar" hidden><div class="fill"></div></div>
-<div class="busy-overlay" id="busyOverlay" hidden><div class="box"><div class="spinner"></div><span>กำลังดำเนินการ กรุณารอสักครู่…</span></div></div>
+<div class="busy-overlay" id="busyOverlay" hidden><div class="box"><div class="spinner"></div><span id="busyOverlayMsg">กำลังดำเนินการ กรุณารอสักครู่…</span></div></div>
 
 <div class="wrap">
   <div id="banner" class="banner" hidden></div>
@@ -636,12 +636,28 @@ function lsSet(v) { try { localStorage.setItem(LS_KEY, v); } catch (e) {} }
 
 /* ---------- loading bar + full-screen busy overlay ---------- */
 let busyCount = 0, overlayCount = 0;
+const DEFAULT_OVERLAY_MSG = 'กำลังดำเนินการ กรุณารอสักครู่…';
+const FIRST_LOAD_MSG = 'กำลังเตรียมข้อมูลทั้งหมดของสาขานี้ให้พร้อม กรุณารอสักครู่ การโหลดครั้งแรกอาจใช้เวลาสักครู่…';
 function setBusy(on) { busyCount = Math.max(0, busyCount + (on ? 1 : -1)); $('loadingBar').hidden = busyCount === 0; }
 function setOverlay(on) { overlayCount = Math.max(0, overlayCount + (on ? 1 : -1)); $('busyOverlay').hidden = overlayCount === 0; }
+function setOverlayMsg(msg) { $('busyOverlayMsg').textContent = msg || DEFAULT_OVERLAY_MSG; }
 async function withBusy(promise, opts) {
   const overlay = !opts || opts.overlay !== false;
   setBusy(true); if (overlay) setOverlay(true);
   try { return await promise; } finally { setBusy(false); if (overlay) setOverlay(false); }
+}
+/* Load everything this branch needs (stock items + pending Goods Receipt list) up front, with a
+   blocking overlay that explains the first load can take a moment. Once this resolves, opening any
+   dashboard tile reads from the already-loaded/cached data instead of fetching again. */
+async function prefetchBranchData() {
+  if (!CONFIG.APPS_SCRIPT_URL) return; // demo / read-only mode: nothing to prefetch, items are already in memory
+  setOverlay(true); setOverlayMsg(FIRST_LOAD_MSG);
+  try {
+    await Promise.all([
+      loadItems(false, { overlay: false }),
+      loadPR(false, { overlay: false })
+    ]);
+  } finally { setOverlayMsg(DEFAULT_OVERLAY_MSG); setOverlay(false); }
 }
 
 /* ---------- helpers ---------- */
@@ -788,7 +804,7 @@ async function loadBranches(fresh) {
     if (state.view === 'branch' && !state.branch) {
       const saved = lsGet();
       const match = saved && state.branches.find(b => same(b, saved));
-      if (match) { state.branch = match; state.view = 'dashboard'; loadItems(false, { overlay: false }); }
+      if (match) { state.branch = match; state.view = 'dashboard'; prefetchBranchData(); }
     }
     if (!state.branches.length) banner('<strong>ไม่พบสาขา</strong> ตรวจสอบว่าแท็บที่ 2 มีคอลัมน์หัวข้อ "Branch" พร้อมรายชื่อสาขาด้านล่าง', true);
   } catch (err) {
@@ -829,9 +845,11 @@ async function loadPR(manual, opts) {
     state.prList = state.demo ? DEMO_PR.filter(x => same(x.branch, state.branch) && x.source === 'PR' && (state.prShowHistory || x.grQty === null)) : [];
     if (manual) toast('รีเฟรชแล้ว'); render(); return;
   }
-  state.prLoading = true; render();
+  const hadData = state.prList.length > 0;
+  state.prLoading = manual || !hadData;
+  if (state.prLoading) render();
   try {
-    const data = await callScriptGet({ action: 'pr', branch: state.branch, status: state.prShowHistory ? 'all' : 'pending', source: 'PR' }, { overlay: overlay !== false });
+    const data = await callScriptGet({ action: 'pr', branch: state.branch, status: state.prShowHistory ? 'all' : 'pending', source: 'PR' }, { overlay: overlay !== false && !hadData });
     state.prList = data.items.map(x => ({
       row: x.row, prId: String(x.prId), date: x.date, branch: String(x.branch), itemNo: String(x.itemNo), itemName: String(x.itemName), unit: String(x.unit || ''),
       remainingQty: toNumber(x.remainingQty), requestQty: toNumber(x.requestQty),
@@ -1263,18 +1281,21 @@ function goto(view) {
 }
 function chooseReceiptMode(mode) {
   state.receiptMode = mode;
-  if (mode === 'pr') { state.prShowHistory = false; loadPR(false).then(() => { state.lastUpdated3 = new Date().toLocaleString(); render(); }); }
-  if (mode === 'direct') { state.q4 = ''; $('q4').value = ''; state.sort4 = { key: null, dir: 1 }; state.selected4 = {}; state.qtyDraft4 = {}; loadItems(false).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); }); }
+  // overlay: false — the data was already prefetched right after picking the branch, so the list we
+  // already have renders immediately below; this call just quietly refreshes it in the background.
+  if (mode === 'pr') { state.prShowHistory = false; loadPR(false, { overlay: false }).then(() => { state.lastUpdated3 = new Date().toLocaleString(); render(); }); }
+  if (mode === 'direct') { state.q4 = ''; $('q4').value = ''; state.sort4 = { key: null, dir: 1 }; state.selected4 = {}; state.qtyDraft4 = {}; loadItems(false, { overlay: false }).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); }); }
   render();
 }
 
 /* ---------- events ---------- */
 $('branchSelect').addEventListener('change', e => { $('continue').disabled = !e.target.value; });
-$('continue').addEventListener('click', () => {
+$('continue').addEventListener('click', async () => {
   const v = $('branchSelect').value; if (!v) return;
   state.branch = v; lsSet(v); goto('dashboard');
-  // warm the cache in the background so tiles open instantly
-  loadItems(false, { overlay: false });
+  // load everything this branch needs up front (with a "please wait, first load takes a moment"
+  // overlay) so every tile opens instantly afterwards instead of each one fetching on its own.
+  await prefetchBranchData();
 });
 $('retry').addEventListener('click', () => loadBranches(true));
 $('changeBranch0').addEventListener('click', () => { state.view = 'branch'; render(); });
