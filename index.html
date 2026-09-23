@@ -360,7 +360,7 @@
 /* ============================ CONFIG ============================ */
 const CONFIG = {
   // Paste your Apps Script Web App URL here (see apps-script-code.gs for setup).
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyxYm4rop8T86vwovzHs5LfsFjrRuXfID1d3aPBKV42Dbxr2UcduTZ97AfoBfLG73gs/exec',
+  APPS_SCRIPT_URL: '',
   TOKEN: '',                 // must match SECRET in the Apps Script, if you set one
 
   // Optional read-only mode (no Apps Script): paste the Google Sheet link
@@ -489,23 +489,29 @@ function uniq(list) {
 }
 
 /* ---------- Apps Script calls ---------- */
+async function parseScriptResponse(res) {
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); }
+  catch (e) {
+    throw new Error('Google did not return data (it sent a web page instead). This usually means the Apps Script deployment needs to be redeployed as a new version, or "Who has access" is not set to "Anyone". Check the Apps Script editor’s Executions log for the exact error.');
+  }
+  if (!data.ok) throw new Error(data.error || 'Apps Script returned an error.');
+  return data;
+}
 async function callScriptGet(params) {
   const q = Object.entries(Object.assign({ token: CONFIG.TOKEN, _: Date.now() }, params))
     .map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&');
   const sep = CONFIG.APPS_SCRIPT_URL.includes('?') ? '&' : '?';
   const res = await fetch(CONFIG.APPS_SCRIPT_URL + sep + q);
-  const data = await res.json();
-  if (!data.ok) throw new Error(data.error || 'Apps Script returned an error.');
-  return data;
+  return parseScriptResponse(res);
 }
 async function callScriptPost(body) {
   const res = await fetch(CONFIG.APPS_SCRIPT_URL, {
     method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(Object.assign({ token: CONFIG.TOKEN }, body))
   });
-  const data = await res.json();
-  if (!data.ok) throw new Error(data.error || 'Request failed.');
-  return data;
+  return parseScriptResponse(res);
 }
 const mapItems = list => list.map(x => ({ row: x.row, branch: String(x.branch), itemNo: String(x.itemNo), itemName: String(x.itemName), qty: toNumber(x.qty) }));
 const CACHE_KEY = 'stockcheck.branches.' + CONFIG.APPS_SCRIPT_URL;
