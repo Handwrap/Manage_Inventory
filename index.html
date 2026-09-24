@@ -904,7 +904,6 @@ async function submitReceipt(pr, qty) {
       await callScriptPost({ action: 'receiveGoods', row: pr.row, prId: pr.prId, branch: pr.branch, itemNo: pr.itemNo, qty });
       pr.grQty = qty; pr.receivedDate = new Date().toISOString().slice(0, 10);
       if (!state.prShowHistory) state.prList = state.prList.filter(x => x !== pr);
-      itemsCacheSet(pr.branch, []); // invalidate local items cache so inventory reflects the change
     }
     state.editing3 = null; closeModal('grModal');
     openGRSuccessModal(`อ้างอิงใบขอซื้อ ${pr.prId}`, [{ itemNo: pr.itemNo, itemName: pr.itemName, unit: pr.unit, qty }]);
@@ -931,7 +930,6 @@ async function submitDirect() {
     } else {
       const data = await callScriptPost({ action: 'receiveDirect', branch: state.branch, items });
       prId = data.prId;
-      itemsCacheSet(state.branch, []); // invalidate local items cache
     }
     state.selected4 = {}; state.qtyDraft4 = {};
     closeModal('directModal');
@@ -943,7 +941,6 @@ function openGRSuccessModal(sourceLabel, items) {
   $('grSuccessHint').textContent = `บันทึกการรับสินค้า ${sourceLabel} และเพิ่มเข้าจำนวนคงเหลือของสาขา ${state.branch} เรียบร้อยแล้ว`;
   $('grSuccessRows').innerHTML = items.map(it => `<tr><td>${escapeHTML(it.itemNo)}</td><td>${escapeHTML(it.itemName)}</td><td>${escapeHTML(it.unit || '')}</td><td class="num">${escapeHTML(String(it.qty))}</td></tr>`).join('');
   $('grSuccessModal').hidden = false;
-  forceItemsRefreshOnNextView();
 }
 
 /* ---------- saving: goods issue (no PR, negative movement, requires a reason) ---------- */
@@ -968,7 +965,6 @@ async function submitIssue() {
     } else {
       const data = await callScriptPost({ action: 'goodsIssue', branch: state.branch, reason, items });
       prId = data.prId;
-      itemsCacheSet(state.branch, []); // invalidate local items cache
     }
     state.selected5 = {}; state.qtyDraft5 = {};
     $('issueReason').value = '';
@@ -981,15 +977,6 @@ function openIssueSuccessModal(prId, reason, items) {
   $('issueSuccessHint').innerHTML = `บันทึกการเบิกสินค้าเลขที่ <strong>${escapeHTML(prId)}</strong> และหักออกจากจำนวนคงเหลือของสาขา ${escapeHTML(state.branch)} เรียบร้อยแล้ว<br>เหตุผล: ${escapeHTML(reason)}`;
   $('issueSuccessRows').innerHTML = items.map(it => `<tr><td>${escapeHTML(it.itemNo)}</td><td>${escapeHTML(it.itemName)}</td><td>${escapeHTML(it.unit || '')}</td><td class="num">-${escapeHTML(String(it.issueQty))}</td></tr>`).join('');
   $('issueSuccessModal').hidden = false;
-  forceItemsRefreshOnNextView();
-}
-function forceItemsRefreshOnNextView() {
-  // drop the cached/loaded items for this branch so Manage Inventory / other tiles re-fetch the updated
-  // quantity from the sheet. Skipped in demo mode: there is no backend to re-fetch from, and the demo
-  // stock numbers were already updated in place, so dropping them here would just make them disappear.
-  if (!CONFIG.APPS_SCRIPT_URL) return;
-  itemsCacheSet(state.branch, []);
-  state.items = state.items.filter(x => !same(x.branch, state.branch));
 }
 
 /* ---------- shared table helpers ---------- */
@@ -1009,6 +996,14 @@ function applySort(theadEl, sort) {
   });
 }
 function closeModal(id) { $(id).hidden = true; }
+
+/* After a successful submit, refresh the data for whichever screen the person is still looking at
+   (instead of reloading/leaving the page) so the numbers on screen catch up with what was just saved. */
+async function refreshCurrentView() {
+  if (state.view === 'receipt' && state.receiptMode === 'pr') { await loadPR(true, { overlay: false }); state.lastUpdated3 = new Date().toLocaleString(); }
+  else { await loadItems(true, { overlay: false }); state.lastUpdated1 = new Date().toLocaleString(); }
+  render();
+}
 
 /* ---------- rendering: branch picker ---------- */
 function renderBranchView() {
@@ -1332,7 +1327,7 @@ $('rows2').addEventListener('change', e => {
 $('rows2').addEventListener('input', e => { const qi = e.target.closest('.qty-input'); if (qi) { state.qtyDraft2[qi.dataset.row] = qi.value; renderSelectBar2(); } });
 $('prCancel').addEventListener('click', () => closeModal('prModal'));
 $('prConfirm').addEventListener('click', () => { if (!state.submitting2) submitPR(); });
-$('prSuccessClose').addEventListener('click', () => location.reload());
+$('prSuccessClose').addEventListener('click', () => { closeModal('prSuccessModal'); refreshCurrentView(); });
 
 /* goods receipt: mode choice */
 document.querySelectorAll('#receiptChoice [data-mode]').forEach(el => el.addEventListener('click', () => chooseReceiptMode(el.dataset.mode)));
@@ -1362,7 +1357,7 @@ $('rows3').addEventListener('click', e => {
 });
 $('grCancel').addEventListener('click', () => { closeModal('grModal'); pendingReceipt = null; });
 $('grConfirm').addEventListener('click', () => { if (pendingReceipt && !state.saving3) { const { pr, qty } = pendingReceipt; pendingReceipt = null; submitReceipt(pr, qty); } });
-$('grSuccessClose').addEventListener('click', () => location.reload());
+$('grSuccessClose').addEventListener('click', () => { closeModal('grSuccessModal'); refreshCurrentView(); });
 
 /* goods receipt: direct mode (no PR) */
 $('q4').addEventListener('input', e => { state.q4 = e.target.value; render(); });
@@ -1407,7 +1402,7 @@ $('rows5').addEventListener('input', e => { const qi = e.target.closest('.qty-in
 $('issueCancel').addEventListener('click', () => closeModal('issueModal'));
 $('issueConfirm').addEventListener('click', () => { if (!state.submitting5) submitIssue(); });
 $('issueReason').addEventListener('input', () => { if ($('issueReason').value.trim()) $('issueReasonHint').hidden = true; });
-$('issueSuccessClose').addEventListener('click', () => location.reload());
+$('issueSuccessClose').addEventListener('click', () => { closeModal('issueSuccessModal'); refreshCurrentView(); });
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeModal('prModal'); closeModal('prSuccessModal'); closeModal('grModal'); closeModal('directModal'); closeModal('grSuccessModal'); closeModal('issueModal'); closeModal('issueSuccessModal'); }
