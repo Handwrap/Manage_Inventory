@@ -584,12 +584,14 @@
 <script>
 /* ============================ CONFIG ============================ */
 const CONFIG = {
-  // Paste your Apps Script Web App URL here (see apps-script-code.gs for setup).
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyxYm4rop8T86vwovzHs5LfsFjrRuXfID1d3aPBKV42Dbxr2UcduTZ97AfoBfLG73gs/exec',
-  TOKEN: '',                 // must match SECRET in the Apps Script, if you set one
+  // Supabase > Project Settings > API (or "Connect"): the Project URL and the PUBLIC key
+  // ("publishable" sb_publishable_... or legacy "anon"). NEVER put the secret / service_role key here.
+  SUPABASE_URL: 'https://rxiszjmvcpukvtkstday.supabase.co',          // e.g. 'https://abcdefgh.supabase.co'
+  SUPABASE_KEY: 'sb_publishable_xqTfP6U6CYtgsDOjKNrCQw_1OcQGqFT',
+  TOKEN: '',                 // must match the 'token' value in app_settings (1-setup.sql), if you set one
 
-  // Optional read-only mode (no Apps Script): paste the Google Sheet link
-  // (Share > "Anyone with the link" > Viewer). Request Purchase / Goods Receipt / Goods Issue need the Apps Script mode.
+  // Optional read-only mode (no database): paste the Google Sheet link
+  // (Share > "Anyone with the link" > Viewer). Request Purchase / Goods Receipt / Goods Issue need Supabase.
   SHEET_URL: '',
   BRANCH_TAB_NAME: '',
 
@@ -597,6 +599,7 @@ const CONFIG = {
   AUTO_REFRESH_SECONDS: 0    // 0 = off
 };
 /* ================================================================ */
+const HAS_BACKEND = !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_KEY);
 
 const DEMO_BRANCHES = ['Siam', 'Silom', 'Chiang Mai'];
 const DEMO_ITEMS = (() => {
@@ -650,7 +653,7 @@ async function withBusy(promise, opts) {
    blocking overlay that explains the first load can take a moment. Once this resolves, opening any
    dashboard tile reads from the already-loaded/cached data instead of fetching again. */
 async function prefetchBranchData() {
-  if (!CONFIG.APPS_SCRIPT_URL) return; // demo / read-only mode: nothing to prefetch, items are already in memory
+  if (!HAS_BACKEND) return; // demo / read-only mode: nothing to prefetch, items are already in memory
   setOverlay(true); setOverlayMsg(FIRST_LOAD_MSG);
   try {
     await Promise.all([
@@ -746,56 +749,66 @@ function uniq(list) {
   return out;
 }
 
-/* ---------- Apps Script calls ---------- */
-async function parseScriptResponse(res) {
-  const text = await res.text();
+/* ---------- Supabase calls ----------
+   Every action maps to one database function (see 1-setup.sql), called at /rest/v1/rpc/<name>.
+   The functions return the same {ok, ...} shape the old Apps Script did, so the rest of the app
+   didn't need to change. */
+const RPC = {
+  branches:      p => ['get_branches',   {}],
+  items:         p => ['get_items',      { p_branch: p.branch || '' }],
+  pr:            p => ['get_pr',         { p_branch: p.branch || '', p_status: p.status || 'pending', p_source: p.source || '' }],
+  submitPR:      b => ['submit_pr',      { p_branch: b.branch, p_items: b.items }],
+  receiveGoods:  b => ['receive_goods',  { p_row: Number(b.row) || 0, p_pr_id: b.prId, p_branch: b.branch, p_item_no: b.itemNo, p_qty: Number(b.qty) }],
+  receiveDirect: b => ['receive_direct', { p_branch: b.branch, p_items: b.items }],
+  goodsIssue:    b => ['goods_issue',    { p_branch: b.branch, p_reason: b.reason, p_items: b.items }]
+};
+async function callSupabase(params, opts) {
+  const make = RPC[params.action];
+  if (!make) throw new Error('Unknown action: ' + params.action);
+  const [fn, args] = make(params);
+  // New-style keys (sb_publishable_...) go in the apikey header only; legacy JWT keys (eyJ...) also need Authorization.
+  const headers = { 'Content-Type': 'application/json', apikey: CONFIG.SUPABASE_KEY };
+  if (CONFIG.SUPABASE_KEY.startsWith('eyJ')) headers.Authorization = 'Bearer ' + CONFIG.SUPABASE_KEY;
+  const res = await withBusy(fetch(CONFIG.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/' + fn, {
+    method: 'POST', headers, body: JSON.stringify(Object.assign({ p_token: CONFIG.TOKEN }, args))
+  }), opts);
   let data;
-  try { data = JSON.parse(text); }
-  catch (e) {
-    throw new Error('Google ไม่ได้ส่งข้อมูลกลับมา (ได้รับหน้าเว็บแทน) มักเกิดจากต้อง Deploy สคริปต์เป็นเวอร์ชันใหม่ หรือ "Who has access" ไม่ได้ตั้งเป็น "Anyone" ตรวจสอบข้อความ error ที่แท็บ Executions ในหน้า Apps Script');
+  try { data = await res.json(); }
+  catch (e) { throw new Error('เชื่อมต่อฐานข้อมูลไม่สำเร็จ (HTTP ' + res.status + ') ตรวจสอบ SUPABASE_URL และ SUPABASE_KEY'); }
+  if (!res.ok) {
+    if (res.status === 404) throw new Error('ไม่พบฟังก์ชัน ' + fn + ' ในฐานข้อมูล — ได้รัน 1-setup.sql แล้วหรือยัง?');
+    throw new Error((data && (data.message || data.error)) || ('HTTP ' + res.status));
   }
-  if (!data.ok) throw new Error(data.error || 'Apps Script ส่งข้อผิดพลาดกลับมา');
+  if (!data || !data.ok) throw new Error((data && data.error) || 'ฐานข้อมูลส่งข้อผิดพลาดกลับมา');
   return data;
 }
-async function callScriptGet(params, opts) {
-  const q = Object.entries(Object.assign({ token: CONFIG.TOKEN, _: Date.now() }, params))
-    .map(([k, v]) => k + '=' + encodeURIComponent(v)).join('&');
-  const sep = CONFIG.APPS_SCRIPT_URL.includes('?') ? '&' : '?';
-  const res = await withBusy(fetch(CONFIG.APPS_SCRIPT_URL + sep + q), opts);
-  return parseScriptResponse(res);
-}
-async function callScriptPost(body, opts) {
-  const res = await withBusy(fetch(CONFIG.APPS_SCRIPT_URL, {
-    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(Object.assign({ token: CONFIG.TOKEN }, body))
-  }), opts);
-  return parseScriptResponse(res);
-}
+const callScriptGet = callSupabase;
+const callScriptPost = callSupabase;
 const mapItems = list => list.map(x => ({ row: x.row, branch: String(x.branch), itemNo: String(x.itemNo), itemName: String(x.itemName), unit: String(x.unit || ''), qty: toNumber(x.qty) }));
-const CACHE_KEY = 'stockcheck.branches.' + CONFIG.APPS_SCRIPT_URL;
+const CACHE_KEY = 'stockcheck.branches.' + CONFIG.SUPABASE_URL;
 function cacheGet() { try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '[]'); } catch (e) { return []; } }
 function cacheSet(v) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(v)); } catch (e) {} }
-const itemsCacheKey = branch => 'stockcheck.items.' + CONFIG.APPS_SCRIPT_URL + '.' + branch.toLowerCase();
+const itemsCacheKey = branch => 'stockcheck.items.' + CONFIG.SUPABASE_URL + '.' + branch.toLowerCase();
 function itemsCacheGet(branch) { try { return JSON.parse(localStorage.getItem(itemsCacheKey(branch)) || '[]'); } catch (e) { return []; } }
 function itemsCacheSet(branch, items) { try { localStorage.setItem(itemsCacheKey(branch), JSON.stringify(items)); } catch (e) {} }
 
 /* ---------- Step 1: branch list ---------- */
 async function loadBranches(fresh) {
   $('retry').hidden = true;
-  const cached = CONFIG.APPS_SCRIPT_URL ? cacheGet() : [];
+  const cached = HAS_BACKEND ? cacheGet() : [];
   if (cached.length && !state.loaded) { state.branches = cached; state.loaded = true; render(); }
   try {
-    if (CONFIG.APPS_SCRIPT_URL) {
+    if (HAS_BACKEND) {
       const data = await callScriptGet(fresh ? { action: 'branches', fresh: 1 } : { action: 'branches' });
       state.branches = uniq(data.branches); state.demo = false; banner('');
       cacheSet(state.branches);
     } else if (CONFIG.SHEET_URL) {
       const data = await withBusy(loadFromSheet()); state.demo = false;
       state.items = data.items; state.branches = uniq(data.branches);
-      banner('โหมดอ่านอย่างเดียว: เพิ่ม <code>APPS_SCRIPT_URL</code> เพื่อใช้เมนูขอซื้อสินค้า รับสินค้า และเบิกสินค้า');
+      banner('โหมดอ่านอย่างเดียว: ใส่ <code>SUPABASE_URL</code> และ <code>SUPABASE_KEY</code> เพื่อใช้เมนูขอซื้อสินค้า รับสินค้า และเบิกสินค้า');
     } else {
       state.items = JSON.parse(JSON.stringify(DEMO_ITEMS)); state.branches = DEMO_BRANCHES.slice(); state.demo = true;
-      banner('กำลังแสดง <strong>ข้อมูลตัวอย่าง</strong> ใส่ Apps Script URL ของคุณใน <code>CONFIG.APPS_SCRIPT_URL</code> ที่ด้านบนของไฟล์นี้ เพื่อใช้กับชีตจริงของคุณ');
+      banner('กำลังแสดง <strong>ข้อมูลตัวอย่าง</strong> ใส่ <code>CONFIG.SUPABASE_URL</code> และ <code>CONFIG.SUPABASE_KEY</code> ที่ด้านบนของไฟล์นี้ เพื่อใช้กับชีตจริงของคุณ');
     }
     state.loaded = true;
     if (state.branch && !state.branches.some(b => same(b, state.branch))) { state.branch = ''; state.view = 'branch'; }
@@ -819,7 +832,7 @@ async function loadBranches(fresh) {
 /* ---------- Step 2: stock items (Manage Inventory + Request Purchase + Direct Receipt + Goods Issue share this) ---------- */
 async function loadItems(manual, opts) {
   const overlay = opts && opts.overlay;
-  if (!CONFIG.APPS_SCRIPT_URL) { if (manual) toast('รีเฟรชสต๊อกแล้ว'); render(); return; }
+  if (!HAS_BACKEND) { if (manual) toast('รีเฟรชสต๊อกแล้ว'); render(); return; }
   const cached = itemsCacheGet(state.branch);
   const hadCache = cached.length > 0;
   if (hadCache && !manual) { state.items = cached; render(); }
@@ -841,7 +854,7 @@ async function loadItems(manual, opts) {
 async function loadPR(manual, opts) {
   const overlay = opts && opts.overlay;
   state.editing3 = null;
-  if (!CONFIG.APPS_SCRIPT_URL) {
+  if (!HAS_BACKEND) {
     state.prList = state.demo ? DEMO_PR.filter(x => same(x.branch, state.branch) && x.source === 'PR' && (state.prShowHistory || x.grQty === null)) : [];
     if (manual) toast('รีเฟรชแล้ว'); render(); return;
   }
@@ -869,10 +882,10 @@ async function submitPR() {
   state.submitting2 = true; render();
   try {
     let prId, date = new Date().toISOString().slice(0, 10);
-    if (!CONFIG.APPS_SCRIPT_URL) {
+    if (!HAS_BACKEND) {
       prId = demoNextPrId();
       items.forEach(it => DEMO_PR.push({ row: DEMO_PR.length + 2, prId, date, branch: state.branch, itemNo: it.itemNo, itemName: it.itemName, unit: it.unit, remainingQty: it.qty, requestQty: it.requestQty, grQty: null, receivedDate: '', source: 'PR' }));
-      toast(state.demo ? 'ข้อมูลตัวอย่าง — ยังไม่ได้บันทึกลงชีตจริง' : 'บันทึกบนหน้าจอเท่านั้น — ตั้งค่า APPS_SCRIPT_URL เพื่อบันทึกลงชีต');
+      toast(state.demo ? 'ข้อมูลตัวอย่าง — ยังไม่ได้บันทึกลงชีตจริง' : 'บันทึกบนหน้าจอเท่านั้น — ตั้งค่า SUPABASE_URL เพื่อบันทึกลงฐานข้อมูล');
     } else {
       const data = await callScriptPost({ action: 'submitPR', branch: state.branch, items });
       prId = data.prId;
@@ -894,7 +907,7 @@ function openPRSuccessModal(prId, date, items) {
 async function submitReceipt(pr, qty) {
   state.saving3 = true; render();
   try {
-    if (!CONFIG.APPS_SCRIPT_URL) {
+    if (!HAS_BACKEND) {
       pr.grQty = qty; pr.receivedDate = new Date().toISOString().slice(0, 10);
       const stockItem = state.items.find(x => same(x.branch, pr.branch) && x.itemNo === pr.itemNo);
       if (stockItem) stockItem.qty += qty;
@@ -904,7 +917,6 @@ async function submitReceipt(pr, qty) {
       await callScriptPost({ action: 'receiveGoods', row: pr.row, prId: pr.prId, branch: pr.branch, itemNo: pr.itemNo, qty });
       pr.grQty = qty; pr.receivedDate = new Date().toISOString().slice(0, 10);
       if (!state.prShowHistory) state.prList = state.prList.filter(x => x !== pr);
-      itemsCacheSet(pr.branch, []); // invalidate local items cache so inventory reflects the change
     }
     state.editing3 = null; closeModal('grModal');
     openGRSuccessModal(`อ้างอิงใบขอซื้อ ${pr.prId}`, [{ itemNo: pr.itemNo, itemName: pr.itemName, unit: pr.unit, qty }]);
@@ -919,7 +931,7 @@ async function submitDirect() {
   state.submitting4 = true; render();
   try {
     let prId;
-    if (!CONFIG.APPS_SCRIPT_URL) {
+    if (!HAS_BACKEND) {
       prId = demoNextPrId();
       const date = new Date().toISOString().slice(0, 10);
       items.forEach(it => {
@@ -927,11 +939,10 @@ async function submitDirect() {
         const stockItem = state.items.find(x => same(x.branch, state.branch) && x.itemNo === it.itemNo);
         if (stockItem) stockItem.qty += Number(it.receiveQty);
       });
-      toast(state.demo ? 'ข้อมูลตัวอย่าง — ยังไม่ได้บันทึกลงชีตจริง' : 'บันทึกบนหน้าจอเท่านั้น — ตั้งค่า APPS_SCRIPT_URL เพื่อบันทึกลงชีต');
+      toast(state.demo ? 'ข้อมูลตัวอย่าง — ยังไม่ได้บันทึกลงชีตจริง' : 'บันทึกบนหน้าจอเท่านั้น — ตั้งค่า SUPABASE_URL เพื่อบันทึกลงฐานข้อมูล');
     } else {
       const data = await callScriptPost({ action: 'receiveDirect', branch: state.branch, items });
       prId = data.prId;
-      itemsCacheSet(state.branch, []); // invalidate local items cache
     }
     state.selected4 = {}; state.qtyDraft4 = {};
     closeModal('directModal');
@@ -943,7 +954,6 @@ function openGRSuccessModal(sourceLabel, items) {
   $('grSuccessHint').textContent = `บันทึกการรับสินค้า ${sourceLabel} และเพิ่มเข้าจำนวนคงเหลือของสาขา ${state.branch} เรียบร้อยแล้ว`;
   $('grSuccessRows').innerHTML = items.map(it => `<tr><td>${escapeHTML(it.itemNo)}</td><td>${escapeHTML(it.itemName)}</td><td>${escapeHTML(it.unit || '')}</td><td class="num">${escapeHTML(String(it.qty))}</td></tr>`).join('');
   $('grSuccessModal').hidden = false;
-  forceItemsRefreshOnNextView();
 }
 
 /* ---------- saving: goods issue (no PR, negative movement, requires a reason) ---------- */
@@ -956,7 +966,7 @@ async function submitIssue() {
   state.submitting5 = true; render();
   try {
     let prId;
-    if (!CONFIG.APPS_SCRIPT_URL) {
+    if (!HAS_BACKEND) {
       prId = demoNextPrId();
       const date = new Date().toISOString().slice(0, 10);
       items.forEach(it => {
@@ -964,11 +974,10 @@ async function submitIssue() {
         const stockItem = state.items.find(x => same(x.branch, state.branch) && x.itemNo === it.itemNo);
         if (stockItem) stockItem.qty -= Number(it.issueQty);
       });
-      toast(state.demo ? 'ข้อมูลตัวอย่าง — ยังไม่ได้บันทึกลงชีตจริง' : 'บันทึกบนหน้าจอเท่านั้น — ตั้งค่า APPS_SCRIPT_URL เพื่อบันทึกลงชีต');
+      toast(state.demo ? 'ข้อมูลตัวอย่าง — ยังไม่ได้บันทึกลงชีตจริง' : 'บันทึกบนหน้าจอเท่านั้น — ตั้งค่า SUPABASE_URL เพื่อบันทึกลงฐานข้อมูล');
     } else {
       const data = await callScriptPost({ action: 'goodsIssue', branch: state.branch, reason, items });
       prId = data.prId;
-      itemsCacheSet(state.branch, []); // invalidate local items cache
     }
     state.selected5 = {}; state.qtyDraft5 = {};
     $('issueReason').value = '';
@@ -981,15 +990,6 @@ function openIssueSuccessModal(prId, reason, items) {
   $('issueSuccessHint').innerHTML = `บันทึกการเบิกสินค้าเลขที่ <strong>${escapeHTML(prId)}</strong> และหักออกจากจำนวนคงเหลือของสาขา ${escapeHTML(state.branch)} เรียบร้อยแล้ว<br>เหตุผล: ${escapeHTML(reason)}`;
   $('issueSuccessRows').innerHTML = items.map(it => `<tr><td>${escapeHTML(it.itemNo)}</td><td>${escapeHTML(it.itemName)}</td><td>${escapeHTML(it.unit || '')}</td><td class="num">-${escapeHTML(String(it.issueQty))}</td></tr>`).join('');
   $('issueSuccessModal').hidden = false;
-  forceItemsRefreshOnNextView();
-}
-function forceItemsRefreshOnNextView() {
-  // drop the cached/loaded items for this branch so Manage Inventory / other tiles re-fetch the updated
-  // quantity from the sheet. Skipped in demo mode: there is no backend to re-fetch from, and the demo
-  // stock numbers were already updated in place, so dropping them here would just make them disappear.
-  if (!CONFIG.APPS_SCRIPT_URL) return;
-  itemsCacheSet(state.branch, []);
-  state.items = state.items.filter(x => !same(x.branch, state.branch));
 }
 
 /* ---------- shared table helpers ---------- */
@@ -1009,6 +1009,14 @@ function applySort(theadEl, sort) {
   });
 }
 function closeModal(id) { $(id).hidden = true; }
+
+/* After a successful submit, refresh the data for whichever screen the person is still looking at
+   (instead of reloading/leaving the page) so the numbers on screen catch up with what was just saved. */
+async function refreshCurrentView() {
+  if (state.view === 'receipt' && state.receiptMode === 'pr') { await loadPR(true, { overlay: false }); state.lastUpdated3 = new Date().toLocaleString(); }
+  else { await loadItems(true, { overlay: false }); state.lastUpdated1 = new Date().toLocaleString(); }
+  render();
+}
 
 /* ---------- rendering: branch picker ---------- */
 function renderBranchView() {
@@ -1332,7 +1340,7 @@ $('rows2').addEventListener('change', e => {
 $('rows2').addEventListener('input', e => { const qi = e.target.closest('.qty-input'); if (qi) { state.qtyDraft2[qi.dataset.row] = qi.value; renderSelectBar2(); } });
 $('prCancel').addEventListener('click', () => closeModal('prModal'));
 $('prConfirm').addEventListener('click', () => { if (!state.submitting2) submitPR(); });
-$('prSuccessClose').addEventListener('click', () => location.reload());
+$('prSuccessClose').addEventListener('click', () => { closeModal('prSuccessModal'); refreshCurrentView(); });
 
 /* goods receipt: mode choice */
 document.querySelectorAll('#receiptChoice [data-mode]').forEach(el => el.addEventListener('click', () => chooseReceiptMode(el.dataset.mode)));
@@ -1362,7 +1370,7 @@ $('rows3').addEventListener('click', e => {
 });
 $('grCancel').addEventListener('click', () => { closeModal('grModal'); pendingReceipt = null; });
 $('grConfirm').addEventListener('click', () => { if (pendingReceipt && !state.saving3) { const { pr, qty } = pendingReceipt; pendingReceipt = null; submitReceipt(pr, qty); } });
-$('grSuccessClose').addEventListener('click', () => location.reload());
+$('grSuccessClose').addEventListener('click', () => { closeModal('grSuccessModal'); refreshCurrentView(); });
 
 /* goods receipt: direct mode (no PR) */
 $('q4').addEventListener('input', e => { state.q4 = e.target.value; render(); });
@@ -1407,7 +1415,7 @@ $('rows5').addEventListener('input', e => { const qi = e.target.closest('.qty-in
 $('issueCancel').addEventListener('click', () => closeModal('issueModal'));
 $('issueConfirm').addEventListener('click', () => { if (!state.submitting5) submitIssue(); });
 $('issueReason').addEventListener('input', () => { if ($('issueReason').value.trim()) $('issueReasonHint').hidden = true; });
-$('issueSuccessClose').addEventListener('click', () => location.reload());
+$('issueSuccessClose').addEventListener('click', () => { closeModal('issueSuccessModal'); refreshCurrentView(); });
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeModal('prModal'); closeModal('prSuccessModal'); closeModal('grModal'); closeModal('directModal'); closeModal('grSuccessModal'); closeModal('issueModal'); closeModal('issueSuccessModal'); }
