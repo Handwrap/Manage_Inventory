@@ -66,6 +66,16 @@
     background: var(--surface); color: var(--text); font: inherit; margin-bottom: 16px; }
   .picker .btn { width: 100%; padding: 11px; }
   .picker .retry { margin-top: 10px; }
+  .picker input { width: 100%; padding: 11px 12px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text); font: inherit; margin-bottom: 14px; }
+  .picker input:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+  .auth-tabs { display: flex; background: var(--surface-2); border-radius: 10px; padding: 4px; margin: 16px 0 18px; }
+  .auth-tabs button { flex: 1; border: 0; background: none; padding: 8px; border-radius: 7px; color: var(--muted); font-weight: 600; }
+  .auth-tabs button.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+  .auth-error { color: var(--out-ink); font-size: 13.5px; margin: -4px 0 12px; }
+  .userline { font-size: 13px; color: var(--muted); margin-top: 14px; text-align: center; }
+  .userline strong { color: var(--text); }
+  .src-select { padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; min-width: 200px; }
   select:focus, .search input:focus, .qty-input:focus, .reason-input:focus { outline: 2px solid var(--accent); outline-offset: 0; }
 
   .banner { border: 1px solid var(--border); background: var(--surface); border-left: 4px solid var(--accent);
@@ -121,6 +131,8 @@
   .badge.out { background: var(--out-bg); color: var(--out-ink); }
   .badge.pending { background: var(--low-bg); color: var(--low-ink); }
   .badge.received { background: var(--ok-bg); color: var(--ok-ink); }
+  .badge.transit { background: #e3ecff; color: var(--accent); }
+  .badge.closed { background: var(--surface-2); color: var(--muted); }
   .qty-input { width: 96px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border);
     background: var(--surface); color: var(--text); font: inherit; text-align: right; }
   .qty-input:disabled { opacity: .5; }
@@ -207,6 +219,37 @@
 <div class="wrap">
   <div id="banner" class="banner" hidden></div>
 
+  <!-- STEP 0: sign in / sign up -->
+  <section id="view-login" class="picker" hidden>
+    <h1>ตรวจสอบสต๊อกสินค้า</h1>
+    <div class="auth-tabs" role="tablist">
+      <button type="button" role="tab" id="tabSignIn" class="active" aria-selected="true">เข้าสู่ระบบ</button>
+      <button type="button" role="tab" id="tabSignUp" aria-selected="false">สมัครสมาชิก</button>
+    </div>
+    <form id="signInForm" novalidate>
+      <label for="siLogin">ชื่อผู้ใช้ หรือ เบอร์โทรศัพท์</label>
+      <input id="siLogin" autocomplete="username" autocapitalize="off" spellcheck="false">
+      <label for="siPassword">รหัสผ่าน</label>
+      <input id="siPassword" type="password" autocomplete="current-password">
+      <div class="auth-error" id="siError" hidden></div>
+      <button class="btn primary" type="submit">เข้าสู่ระบบ</button>
+    </form>
+    <form id="signUpForm" novalidate hidden>
+      <label for="suInvite">รหัสเชิญ (ขอจากผู้ดูแลระบบ)</label>
+      <input id="suInvite" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <label for="suUsername">ชื่อผู้ใช้</label>
+      <input id="suUsername" autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="30" placeholder="3–30 ตัวอักษร ไม่มีช่องว่าง">
+      <label for="suPhone">เบอร์โทรศัพท์</label>
+      <input id="suPhone" type="tel" autocomplete="tel" inputmode="tel" placeholder="เช่น 0812345678">
+      <label for="suPassword">รหัสผ่าน</label>
+      <input id="suPassword" type="password" autocomplete="new-password" placeholder="อย่างน้อย 6 ตัวอักษร">
+      <label for="suPassword2">ยืนยันรหัสผ่าน</label>
+      <input id="suPassword2" type="password" autocomplete="new-password">
+      <div class="auth-error" id="suError" hidden></div>
+      <button class="btn primary" type="submit">สมัครสมาชิก</button>
+    </form>
+  </section>
+
   <!-- STEP 1: choose branch -->
   <section id="view-branch" class="picker" hidden>
     <h1>ตรวจสอบสต๊อกสินค้า</h1>
@@ -215,6 +258,7 @@
     <select id="branchSelect" disabled><option value="">กำลังโหลดสาขา…</option></select>
     <button class="btn primary" id="continue" type="button" disabled>ดำเนินการต่อ</button>
     <button class="btn retry" id="retry" type="button" hidden>ลองใหม่อีกครั้ง</button>
+    <div class="userline" id="userline0" hidden>เข้าสู่ระบบในชื่อ <strong class="js-username"></strong> · <button class="link-btn js-logout" type="button">ออกจากระบบ</button></div>
   </section>
 
   <!-- STEP 2: dashboard -->
@@ -222,17 +266,18 @@
     <header class="top">
       <div>
         <h1>ตรวจสอบสต๊อกสินค้า</h1>
-        <div class="sub">สาขา: <strong id="branchName0"></strong></div>
+        <div class="sub">สาขา: <strong id="branchName0"></strong><span class="js-userwrap" hidden> &middot; ผู้ใช้: <strong class="js-username"></strong></span></div>
       </div>
       <div class="head-actions">
         <button class="btn" id="changeBranch0" type="button">&#8592; เปลี่ยนสาขา</button>
+        <button class="btn js-logout" type="button" hidden>ออกจากระบบ</button>
       </div>
     </header>
     <div class="tiles">
-      <button class="tile" type="button" data-goto="purchase">
+      <button class="tile" type="button" data-goto="replenish">
         <div class="icon">&#128722;</div>
-        <div class="t">ขอซื้อสินค้า</div>
-        <div class="d">เลือกสินค้าและระบุจำนวนที่ต้องการขอซื้อจากสต๊อกของสาขานี้</div>
+        <div class="t">ขอเติมสินค้า</div>
+        <div class="d">ขอซื้อสินค้า (PR) หรือขอโอนสินค้าจากสาขาอื่น (STR)</div>
         <div class="n">เปิด &rarr;</div>
       </button>
       <button class="tile" type="button" data-goto="receipt">
@@ -293,15 +338,42 @@
     </div>
   </section>
 
+  <!-- STEP 3b-0: Replenish – choose PR or STR -->
+  <section id="view-replenish" hidden>
+    <header class="top">
+      <div>
+        <h2 class="pagetitle">ขอเติมสินค้า</h2>
+        <div class="sub">สาขา: <strong id="branchName9"></strong></div>
+      </div>
+      <div class="head-actions">
+        <button class="btn" id="toDash9" type="button">&#8592; หน้าหลัก</button>
+      </div>
+    </header>
+    <div class="tiles two">
+      <button class="tile" type="button" data-goto="purchase">
+        <div class="icon">&#128203;</div>
+        <div class="t">ขอซื้อสินค้า (PR)</div>
+        <div class="d">สั่งซื้อสินค้าจากผู้ขาย เลือกสินค้าและระบุจำนวนที่ต้องการ</div>
+        <div class="n">เลือก &rarr;</div>
+      </button>
+      <button class="tile" type="button" data-goto="transfer" id="tileTransfer">
+        <div class="icon">&#128666;</div>
+        <div class="t">ขอโอนสินค้าจากสาขาอื่น (STR)</div>
+        <div class="d">ขอสินค้าจากสาขาอื่นที่มีของ และติดตามสถานะใบขอโอน</div>
+        <div class="n">เลือก &rarr;</div>
+      </button>
+    </div>
+  </section>
+
   <!-- STEP 3b: Request Purchase -->
   <section id="view-purchase" hidden>
     <header class="top">
       <div>
-        <h2 class="pagetitle">ขอซื้อสินค้า</h2>
+        <h2 class="pagetitle">ขอซื้อสินค้า (PR)</h2>
         <div class="sub">สาขา: <strong id="branchName2"></strong> &middot; <span id="updated2"></span></div>
       </div>
       <div class="head-actions">
-        <button class="btn" id="toDash2" type="button">&#8592; หน้าหลัก</button>
+        <button class="btn" id="toDash2" type="button">&#8592; ย้อนกลับ</button>
         <button class="btn" id="refresh2" type="button">&#8635; รีเฟรช</button>
       </div>
     </header>
@@ -329,6 +401,77 @@
     </div>
   </section>
 
+  <!-- STEP 3e: Stock Transfer Request (branch asks the main branch) -->
+  <section id="view-transfer" hidden>
+    <header class="top">
+      <div>
+        <h2 class="pagetitle">ขอโอนสินค้าจากสาขาอื่น (STR)</h2>
+        <div class="sub">สาขา: <strong id="branchName6"></strong> &middot; <span id="updated6"></span></div>
+      </div>
+      <div class="head-actions">
+        <button class="btn" id="toDash6" type="button">&#8592; ย้อนกลับ</button>
+        <button class="btn" id="refresh6" type="button">&#8635; รีเฟรช</button>
+      </div>
+    </header>
+    <div class="auth-tabs" role="tablist" style="max-width:420px;margin-top:0">
+      <button type="button" role="tab" id="trTabNew" class="active">สร้างใบขอโอน</button>
+      <button type="button" role="tab" id="trTabStatus">สถานะใบขอโอน</button>
+    </div>
+    <div id="transferNew">
+      <div class="toolbar">
+        <label class="field-label" for="strSource" style="margin:0">ขอจากสาขา</label>
+        <select id="strSource" class="src-select"></select>
+      </div>
+      <div class="toolbar">
+        <label class="search"><input id="q6" type="search" placeholder="ค้นหาด้วยรหัสสินค้าหรือชื่อสินค้า" autocomplete="off" aria-label="ค้นหาสินค้า"></label>
+        <span class="count" id="count6"></span>
+      </div>
+      <div class="table-box">
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:36px"></th>
+                <th>รหัสสินค้า</th>
+                <th>ชื่อสินค้า</th>
+                <th class="hide-sm">หน่วยนับ</th>
+                <th class="num">คงเหลือสาขาต้นทาง</th>
+                <th class="num">คงเหลือสาขานี้</th>
+                <th class="num">จำนวนที่ขอโอน</th>
+              </tr>
+            </thead>
+            <tbody id="rows6"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="empty6" hidden></div>
+      </div>
+    </div>
+    <div id="transferStatus" hidden>
+      <div class="toolbar"><span class="count" id="count6h"></span></div>
+      <div class="table-box">
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>เลขที่ใบขอโอน</th>
+                <th class="hide-sm">วันที่ขอ</th>
+                <th>จากสาขา</th>
+                <th>รหัสสินค้า</th>
+                <th>ชื่อสินค้า</th>
+                <th class="num">ขอ</th>
+                <th class="num">จ่ายมา</th>
+                <th class="num">รับจริง</th>
+                <th>สถานะ</th>
+              </tr>
+            </thead>
+            <tbody id="rows6h"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="empty6h" hidden></div>
+      </div>
+    </div>
+  </section>
+
   <!-- STEP 3c: Goods Receipt -->
   <section id="view-receipt" hidden>
     <header class="top">
@@ -344,11 +487,11 @@
 
     <!-- 3c-0: choose receipt mode -->
     <div id="receiptChoice">
-      <div class="tiles two">
+      <div class="tiles">
         <button class="tile" type="button" data-mode="pr">
           <div class="icon">&#128203;</div>
           <div class="t">รับสินค้าอ้างอิงใบขอซื้อ (PR)</div>
-          <div class="d">เลือกใบขอซื้อที่ส่งไว้แล้ว แล้วบันทึกจำนวนที่ได้รับจริง</div>
+          <div class="d">เลือกรายการขอซื้อที่ค้างรับ (เลือกได้หลายรายการ) แล้วบันทึกจำนวนที่ได้รับจริง</div>
           <div class="n">เลือก &rarr;</div>
         </button>
         <button class="tile" type="button" data-mode="direct">
@@ -357,10 +500,16 @@
           <div class="d">เลือกสินค้าที่มีอยู่ในสาขานี้ และระบุจำนวนที่ได้รับโดยตรง</div>
           <div class="n">เลือก &rarr;</div>
         </button>
+        <button class="tile" type="button" data-mode="str" id="tileRecvStr" hidden>
+          <div class="icon">&#128666;</div>
+          <div class="t">รับสินค้าโอนจากสาขาอื่น (STR)</div>
+          <div class="d">ยืนยันการรับสินค้าที่สาขาอื่นจ่ายมาตามใบขอโอนของสาขานี้</div>
+          <div class="n">เลือก &rarr;</div>
+        </button>
       </div>
     </div>
 
-    <!-- 3c-1: PR-based receipt -->
+    <!-- 3c-1: PR-based receipt (multi-line) -->
     <div id="receiptPR" hidden>
       <div class="toolbar">
         <button class="link-btn" id="backToChoicePR" type="button">&#8592; เปลี่ยนวิธีรับสินค้า</button>
@@ -373,6 +522,7 @@
           <table>
             <thead>
               <tr>
+                <th style="width:36px"><input type="checkbox" id="selAll3" aria-label="เลือกทั้งหมด"></th>
                 <th>เลขที่ใบขอซื้อ</th>
                 <th class="hide-sm">วันที่</th>
                 <th>รหัสสินค้า</th>
@@ -382,13 +532,43 @@
                 <th class="num">จำนวนที่ขอซื้อ</th>
                 <th class="num">จำนวนที่รับ</th>
                 <th class="hide-sm">สถานะ</th>
-                <th class="actions">รับสินค้า</th>
               </tr>
             </thead>
             <tbody id="rows3"></tbody>
           </table>
         </div>
         <div class="empty" id="empty3" hidden></div>
+      </div>
+    </div>
+
+    <!-- 3c-3: receive a stock transfer from the main branch (multi-line) -->
+    <div id="receiptSTR" hidden>
+      <div class="toolbar">
+        <button class="link-btn" id="backToChoiceSTR" type="button">&#8592; เปลี่ยนวิธีรับสินค้า</button>
+        <span style="flex:1"></span>
+        <span class="count" id="count7"></span>
+      </div>
+      <div class="table-box">
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:36px"><input type="checkbox" id="selAll7" aria-label="เลือกทั้งหมด"></th>
+                <th>เลขที่ใบขอโอน</th>
+                <th>จากสาขา</th>
+                <th class="hide-sm">วันที่จ่าย</th>
+                <th>รหัสสินค้า</th>
+                <th>ชื่อสินค้า</th>
+                <th class="hide-sm">หน่วยนับ</th>
+                <th class="num">ขอ</th>
+                <th class="num">จ่ายมา</th>
+                <th class="num">จำนวนที่รับจริง</th>
+              </tr>
+            </thead>
+            <tbody id="rows7"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="empty7" hidden></div>
       </div>
     </div>
 
@@ -431,30 +611,89 @@
       </div>
       <div class="head-actions">
         <button class="btn" id="toDash5" type="button">&#8592; หน้าหลัก</button>
-        <button class="btn" id="refresh5" type="button">&#8635; รีเฟรช</button>
+        <button class="btn" id="refresh5" type="button" hidden>&#8635; รีเฟรช</button>
       </div>
     </header>
-    <div class="toolbar">
-      <label class="search"><input id="q5" type="search" placeholder="ค้นหาด้วยรหัสสินค้าหรือชื่อสินค้า" autocomplete="off" aria-label="ค้นหาสินค้า"></label>
-      <span class="count" id="count5"></span>
-    </div>
-    <div class="table-box">
-      <div class="scroll">
-        <table>
-          <thead>
-            <tr>
-              <th style="width:36px"></th>
-              <th data-key="itemNo" aria-sort="none"><button type="button">รหัสสินค้า <span class="arrow">&#9650;</span></button></th>
-              <th data-key="itemName" aria-sort="none"><button type="button">ชื่อสินค้า <span class="arrow">&#9650;</span></button></th>
-              <th class="hide-sm">หน่วยนับ</th>
-              <th data-key="qty" class="num" aria-sort="none"><button type="button">จำนวนคงเหลือ <span class="arrow">&#9650;</span></button></th>
-              <th class="num">จำนวนที่ต้องการเบิก</th>
-            </tr>
-          </thead>
-          <tbody id="rows5"></tbody>
-        </table>
+
+    <!-- 3d-0: choose issue mode -->
+    <div id="issueChoice" hidden>
+      <div class="tiles two">
+        <button class="tile" type="button" data-issue-mode="general">
+          <div class="icon">&#128228;</div>
+          <div class="t">เบิกสินค้าทั่วไป</div>
+          <div class="d">เลือกสินค้าที่มีอยู่ในสาขานี้ ระบุจำนวนและเหตุผลในการเบิก</div>
+          <div class="n">เลือก &rarr;</div>
+        </button>
+        <button class="tile" type="button" data-issue-mode="str">
+          <div class="icon">&#128666;</div>
+          <div class="t">จ่ายสินค้าตามใบขอโอน (STR)</div>
+          <div class="d">จ่ายสินค้าให้สาขาอื่นที่ขอโอนจากสาขานี้ เลือกได้หลายรายการ/หลายใบพร้อมกัน</div>
+          <div class="n" id="strPendingBadge">เลือก &rarr;</div>
+        </button>
       </div>
-      <div class="empty" id="empty5" hidden></div>
+    </div>
+
+    <!-- 3d-1: general goods issue -->
+    <div id="issueGeneral" hidden>
+      <div class="toolbar">
+        <button class="link-btn" id="backToIssueChoice1" type="button" hidden>&#8592; เปลี่ยนประเภทการเบิก</button>
+      </div>
+      <div class="toolbar">
+        <label class="search"><input id="q5" type="search" placeholder="ค้นหาด้วยรหัสสินค้าหรือชื่อสินค้า" autocomplete="off" aria-label="ค้นหาสินค้า"></label>
+        <span class="count" id="count5"></span>
+      </div>
+      <div class="table-box">
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:36px"></th>
+                <th data-key="itemNo" aria-sort="none"><button type="button">รหัสสินค้า <span class="arrow">&#9650;</span></button></th>
+                <th data-key="itemName" aria-sort="none"><button type="button">ชื่อสินค้า <span class="arrow">&#9650;</span></button></th>
+                <th class="hide-sm">หน่วยนับ</th>
+                <th data-key="qty" class="num" aria-sort="none"><button type="button">จำนวนคงเหลือ <span class="arrow">&#9650;</span></button></th>
+                <th class="num">จำนวนที่ต้องการเบิก</th>
+              </tr>
+            </thead>
+            <tbody id="rows5"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="empty5" hidden></div>
+      </div>
+    </div>
+
+    <!-- 3d-2: issue against stock transfer requests other branches sent to this one (multi-line) -->
+    <div id="issueSTR" hidden>
+      <div class="toolbar">
+        <button class="link-btn" id="backToIssueChoice2" type="button">&#8592; เปลี่ยนประเภทการเบิก</button>
+      </div>
+      <div class="toolbar">
+        <label class="search"><input id="q8" type="search" placeholder="ค้นหาด้วยเลขที่ใบขอโอน สาขา รหัสหรือชื่อสินค้า" autocomplete="off" aria-label="ค้นหา"></label>
+        <span class="count" id="count8"></span>
+      </div>
+      <div class="table-box">
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:36px"><input type="checkbox" id="selAll8" aria-label="เลือกทั้งหมด"></th>
+                <th>เลขที่ใบขอโอน</th>
+                <th class="hide-sm">วันที่ขอ</th>
+                <th>สาขาที่ขอ</th>
+                <th>รหัสสินค้า</th>
+                <th>ชื่อสินค้า</th>
+                <th class="hide-sm">หน่วยนับ</th>
+                <th class="num">ขอ</th>
+                <th class="num">คงเหลือ</th>
+                <th class="num">จำนวนที่จ่าย</th>
+              </tr>
+            </thead>
+            <tbody id="rows8"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="empty8" hidden></div>
+      </div>
+      <p class="field-hint">จ่ายน้อยกว่าที่ขอได้ (รายการนั้นจะถูกปิด) · ใส่ 0 = ไม่มีสินค้าให้ (ปิดรายการโดยไม่หักสต๊อก)</p>
     </div>
   </section>
 </div>
@@ -494,14 +733,37 @@
   </div>
 </div>
 
-<!-- Goods receipt confirmation modal (single item, from PR) -->
-<div class="modal-overlay" id="grModal" hidden>
+<!-- Shared confirmation modal for the multi-line flows (PR receipt, STR request / issue / receipt) -->
+<div class="modal-overlay" id="lineModal" hidden>
   <div class="modal">
-    <h3>ยืนยันการรับสินค้า</h3>
-    <p class="hint" id="grModalHint"></p>
+    <h3 id="lineModalTitle"></h3>
+    <p class="hint" id="lineModalHint"></p>
+    <div class="scroll">
+      <table>
+        <thead><tr id="lineModalHead"></tr></thead>
+        <tbody id="lineModalRows"></tbody>
+      </table>
+    </div>
     <div class="modal-actions">
-      <button class="btn" id="grCancel" type="button">ยกเลิก</button>
-      <button class="btn primary" id="grConfirm" type="button">ยืนยันการรับสินค้า</button>
+      <button class="btn" id="lineCancel" type="button">ยกเลิก</button>
+      <button class="btn primary" id="lineConfirm" type="button"></button>
+    </div>
+  </div>
+</div>
+
+<!-- Shared success popup for the multi-line flows -->
+<div class="modal-overlay" id="doneModal" hidden>
+  <div class="modal">
+    <h3 id="doneModalTitle"></h3>
+    <p class="hint" id="doneModalHint"></p>
+    <div class="scroll">
+      <table>
+        <thead><tr id="doneModalHead"></tr></thead>
+        <tbody id="doneModalRows"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button class="btn primary" id="doneClose" type="button">เสร็จสิ้น</button>
     </div>
   </div>
 </div>
@@ -586,9 +848,9 @@
 const CONFIG = {
   // Supabase > Project Settings > API (or "Connect"): the Project URL and the PUBLIC key
   // ("publishable" sb_publishable_... or legacy "anon"). NEVER put the secret / service_role key here.
-  SUPABASE_URL: 'https://rxiszjmvcpukvtkstday.supabase.co',          // e.g. 'https://abcdefgh.supabase.co'
+  SUPABASE_URL: 'https://rxiszjmvcpukvtkstday.supabase.co',       // e.g. 'https://abcdefgh.supabase.co'
   SUPABASE_KEY: 'sb_publishable_xqTfP6U6CYtgsDOjKNrCQw_1OcQGqFT',
-  TOKEN: '',                 // must match the 'token' value in app_settings (1-setup.sql), if you set one
+  // Staff sign in with their own account. New accounts need the invite code set in app_settings (5-upgrade-login-str.sql).
 
   // Optional read-only mode (no database): paste the Google Sheet link
   // (Share > "Anyone with the link" > Viewer). Request Purchase / Goods Receipt / Goods Issue need Supabase.
@@ -625,17 +887,29 @@ const state = {
   q2: '', sort2: { key: null, dir: 1 }, selected2: {}, qtyDraft2: {}, submitting2: false,
   // goods receipt
   receiptMode: null, // null | 'pr' | 'direct'
-  prList: [], prLoading: false, prShowHistory: false, editing3: null, saving3: false,
+  prList: [], prLoading: false, prShowHistory: false,
   // direct receipt (no PR)
   q4: '', sort4: { key: null, dir: 1 }, selected4: {}, qtyDraft4: {}, submitting4: false,
   // goods issue
+  issueMode: null, // null (choice, main branch only) | 'general' | 'str'
   q5: '', sort5: { key: null, dir: 1 }, selected5: {}, qtyDraft5: {}, submitting5: false,
+  // login
+  session: null, username: '',
+  // multi-line flows: PR receipt (3), STR request (6), STR receipt (7), STR issue (8)
+  sel3: {}, qty3: {}, sel6: {}, qty6: {}, sel7: {}, qty7: {}, sel8: {}, qty8: {},
+  q6: '', q8: '', transferTab: 'new', strSource: '', srcItems: [], srcLoading: false,
+  strToIssue: [], strToReceive: [], strHistory: [], strLoading: false, savingLines: false,
   reqId: 0
 };
 const $ = id => document.getElementById(id);
 const LS_KEY = 'stockcheck.branch';
 function lsGet() { try { return localStorage.getItem(LS_KEY) || ''; } catch (e) { return ''; } }
 function lsSet(v) { try { localStorage.setItem(LS_KEY, v); } catch (e) {} }
+const SESSION_KEY = 'stockcheck.session';
+function sessionLoad() { try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch (e) { return null; } }
+function sessionSave(s) { try { s ? localStorage.setItem(SESSION_KEY, JSON.stringify(s)) : localStorage.removeItem(SESSION_KEY); } catch (e) {} }
+state.session = HAS_BACKEND ? sessionLoad() : null;
+if (state.session) state.username = state.session.username || '';
 
 /* ---------- loading bar + full-screen busy overlay ---------- */
 let busyCount = 0, overlayCount = 0;
@@ -658,7 +932,9 @@ async function prefetchBranchData() {
   try {
     await Promise.all([
       loadItems(false, { overlay: false }),
-      loadPR(false, { overlay: false })
+      loadPR(false, { overlay: false }),
+      loadSTR('to_issue', { overlay: false }),
+      loadSTR('to_receive', { overlay: false })
     ]);
   } finally { setOverlayMsg(DEFAULT_OVERLAY_MSG); setOverlay(false); }
 }
@@ -754,14 +1030,22 @@ function uniq(list) {
    The functions return the same {ok, ...} shape the old Apps Script did, so the rest of the app
    didn't need to change. */
 const RPC = {
+  signUp:        b => ['sign_up',        { p_invite: b.invite, p_username: b.username, p_phone: b.phone, p_password: b.password }],
+  signIn:        b => ['sign_in',        { p_login: b.login, p_password: b.password }],
+  signOut:       b => ['sign_out',       {}],
   branches:      p => ['get_branches',   {}],
   items:         p => ['get_items',      { p_branch: p.branch || '' }],
   pr:            p => ['get_pr',         { p_branch: p.branch || '', p_status: p.status || 'pending', p_source: p.source || '' }],
+  str:           p => ['get_str',        { p_branch: p.branch || '', p_mode: p.mode }],
   submitPR:      b => ['submit_pr',      { p_branch: b.branch, p_items: b.items }],
-  receiveGoods:  b => ['receive_goods',  { p_row: Number(b.row) || 0, p_pr_id: b.prId, p_branch: b.branch, p_item_no: b.itemNo, p_qty: Number(b.qty) }],
+  receiveGoods:  b => ['receive_goods',  { p_branch: b.branch, p_lines: b.lines }],
   receiveDirect: b => ['receive_direct', { p_branch: b.branch, p_items: b.items }],
-  goodsIssue:    b => ['goods_issue',    { p_branch: b.branch, p_reason: b.reason, p_items: b.items }]
+  goodsIssue:    b => ['goods_issue',    { p_branch: b.branch, p_reason: b.reason, p_items: b.items }],
+  submitSTR:     b => ['submit_str',     { p_branch: b.branch, p_from_branch: b.fromBranch, p_items: b.items }],
+  issueSTR:      b => ['issue_str',      { p_branch: b.branch, p_lines: b.lines }],
+  receiveSTR:    b => ['receive_str',    { p_branch: b.branch, p_lines: b.lines }]
 };
+const NO_SESSION = new Set(['sign_up', 'sign_in']);
 async function callSupabase(params, opts) {
   const make = RPC[params.action];
   if (!make) throw new Error('Unknown action: ' + params.action);
@@ -769,15 +1053,18 @@ async function callSupabase(params, opts) {
   // New-style keys (sb_publishable_...) go in the apikey header only; legacy JWT keys (eyJ...) also need Authorization.
   const headers = { 'Content-Type': 'application/json', apikey: CONFIG.SUPABASE_KEY };
   if (CONFIG.SUPABASE_KEY.startsWith('eyJ')) headers.Authorization = 'Bearer ' + CONFIG.SUPABASE_KEY;
+  const body = NO_SESSION.has(fn) ? args : Object.assign({ p_session: (state.session && state.session.token) || '' }, args);
   const res = await withBusy(fetch(CONFIG.SUPABASE_URL.replace(/\/+$/, '') + '/rest/v1/rpc/' + fn, {
-    method: 'POST', headers, body: JSON.stringify(Object.assign({ p_token: CONFIG.TOKEN }, args))
+    method: 'POST', headers, body: JSON.stringify(body)
   }), opts);
   let data;
   try { data = await res.json(); }
   catch (e) { throw new Error('เชื่อมต่อฐานข้อมูลไม่สำเร็จ (HTTP ' + res.status + ') ตรวจสอบ SUPABASE_URL และ SUPABASE_KEY'); }
   if (!res.ok) {
-    if (res.status === 404) throw new Error('ไม่พบฟังก์ชัน ' + fn + ' ในฐานข้อมูล — ได้รัน 1-setup.sql แล้วหรือยัง?');
-    throw new Error((data && (data.message || data.error)) || ('HTTP ' + res.status));
+    if (res.status === 404) throw new Error('ไม่พบฟังก์ชัน ' + fn + ' ในฐานข้อมูล — ได้รัน 1-setup.sql และ 5-upgrade-login-str.sql แล้วหรือยัง?');
+    const msg = (data && (data.message || data.error)) || ('HTTP ' + res.status);
+    if (msg === 'SESSION_EXPIRED') { sessionExpired(); throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง'); }
+    throw new Error(msg);
   }
   if (!data || !data.ok) throw new Error((data && data.error) || 'ฐานข้อมูลส่งข้อผิดพลาดกลับมา');
   return data;
@@ -799,8 +1086,9 @@ async function loadBranches(fresh) {
   if (cached.length && !state.loaded) { state.branches = cached; state.loaded = true; render(); }
   try {
     if (HAS_BACKEND) {
-      const data = await callScriptGet(fresh ? { action: 'branches', fresh: 1 } : { action: 'branches' });
+      const data = await callScriptGet({ action: 'branches' });
       state.branches = uniq(data.branches); state.demo = false; banner('');
+      state.username = data.username || state.username;
       cacheSet(state.branches);
     } else if (CONFIG.SHEET_URL) {
       const data = await withBusy(loadFromSheet()); state.demo = false;
@@ -853,7 +1141,6 @@ async function loadItems(manual, opts) {
 /* ---------- Step 3: purchase requests (Goods Receipt – PR mode) ---------- */
 async function loadPR(manual, opts) {
   const overlay = opts && opts.overlay;
-  state.editing3 = null;
   if (!HAS_BACKEND) {
     state.prList = state.demo ? DEMO_PR.filter(x => same(x.branch, state.branch) && x.source === 'PR' && (state.prShowHistory || x.grQty === null)) : [];
     if (manual) toast('รีเฟรชแล้ว'); render(); return;
@@ -869,11 +1156,81 @@ async function loadPR(manual, opts) {
       grQty: x.grQty === '' || x.grQty === null || x.grQty === undefined ? null : toNumber(x.grQty), receivedDate: x.receivedDate || ''
     }));
     banner('');
+    // drop selections for lines that are no longer pending
+    Object.keys(state.sel3).forEach(r => { if (!state.prList.some(x => String(x.row) === r && x.grQty === null)) { delete state.sel3[r]; delete state.qty3[r]; } });
     if (manual) toast('รีเฟรชแล้ว');
   } catch (err) {
     banner('<strong>ไม่สามารถโหลดรายการขอซื้อสินค้าได้</strong> ' + escapeHTML(err.message || err), true);
   } finally { state.prLoading = false; render(); }
 }
+
+/* ---------- stock transfer (STR) lists + the main branch's items ---------- */
+const STR_LIST_KEY = { to_issue: 'strToIssue', to_receive: 'strToReceive', history: 'strHistory' };
+const optNum = v => v === '' || v === null || v === undefined ? null : toNumber(v);
+async function loadSTR(mode, opts) {
+  if (!HAS_BACKEND) return;
+  const key = STR_LIST_KEY[mode];
+  state.strLoading = !state[key].length; if (state.strLoading) render();
+  try {
+    const data = await callScriptGet({ action: 'str', branch: state.branch, mode }, { overlay: !!(opts && opts.overlay) && state.strLoading });
+    state[key] = data.items.map(x => Object.assign({}, x, {
+      requestQty: toNumber(x.requestQty), onHand: toNumber(x.onHand), issueQty: optNum(x.issueQty), receiveQty: optNum(x.receiveQty)
+    }));
+    const sel = mode === 'to_issue' ? ['sel8', 'qty8'] : mode === 'to_receive' ? ['sel7', 'qty7'] : null;
+    if (sel) Object.keys(state[sel[0]]).forEach(r => { if (!state[key].some(x => String(x.row) === r)) { delete state[sel[0]][r]; delete state[sel[1]][r]; } });
+  } catch (err) {
+    banner('<strong>ไม่สามารถโหลดรายการขอโอนสินค้าได้</strong> ' + escapeHTML(err.message || err), true);
+  } finally { state.strLoading = false; render(); }
+}
+// items of the branch the STR will be requested FROM (picked in the transfer screen)
+async function loadSrcItems(opts) {
+  if (!HAS_BACKEND || !state.strSource) { state.srcItems = []; render(); return; }
+  const src = state.strSource;
+  state.srcLoading = true; render();
+  try {
+    const data = await callScriptGet({ action: 'items', branch: src }, { overlay: !!(opts && opts.overlay) });
+    if (src === state.strSource) state.srcItems = mapItems(data.items);
+  } catch (err) {
+    banner('<strong>ไม่สามารถโหลดรายการสินค้าของสาขา ' + escapeHTML(src) + ' ได้</strong> ' + escapeHTML(err.message || err), true);
+  } finally { state.srcLoading = false; render(); }
+}
+
+/* ---------- login ---------- */
+function sessionExpired() {
+  sessionSave(null); state.session = null; state.view = 'login';
+  toast('เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง'); render();
+}
+async function doSignIn(login, password) {
+  const data = await callScriptPost({ action: 'signIn', login, password });
+  afterAuth(data);
+}
+async function doSignUp(f) {
+  const data = await callScriptPost(Object.assign({ action: 'signUp' }, f));
+  afterAuth(data);
+  toast('สมัครสมาชิกเรียบร้อย ยินดีต้อนรับ ' + data.username);
+}
+function afterAuth(data) {
+  state.session = { token: data.session, username: data.username };
+  state.username = data.username; sessionSave(state.session);
+  ['siPassword', 'suPassword', 'suPassword2', 'suInvite'].forEach(id => { $(id).value = ''; });
+  state.view = 'branch'; state.loaded = false; render();
+  loadBranches(true);
+}
+async function doSignOut() {
+  if (HAS_BACKEND && state.session) callScriptPost({ action: 'signOut' }, { overlay: false }).catch(() => {});
+  sessionSave(null);
+  Object.assign(state, { session: null, username: '', branch: '', view: 'login', loaded: false, items: [], prList: [],
+    srcItems: [], strSource: '', strToIssue: [], strToReceive: [], strHistory: [] });
+  banner(''); render();
+}
+function showAuthTab(tab) {
+  const signIn = tab === 'signin';
+  $('tabSignIn').classList.toggle('active', signIn); $('tabSignIn').setAttribute('aria-selected', signIn);
+  $('tabSignUp').classList.toggle('active', !signIn); $('tabSignUp').setAttribute('aria-selected', !signIn);
+  $('signInForm').hidden = !signIn; $('signUpForm').hidden = signIn;
+  $('siError').hidden = true; $('suError').hidden = true;
+}
+function authError(id, msg) { $(id).textContent = msg; $(id).hidden = false; }
 
 /* ---------- saving: submit purchase request ---------- */
 async function submitPR() {
@@ -903,25 +1260,183 @@ function openPRSuccessModal(prId, date, items) {
   $('prSuccessModal').hidden = false;
 }
 
-/* ---------- saving: goods receipt (PR-based, single item) ---------- */
-async function submitReceipt(pr, qty) {
-  state.saving3 = true; render();
+/* ---------- multi-line flows (tick several lines, type a quantity each, confirm once) ----------
+   Used by: PR receipt, STR request, STR issue (main branch), STR receipt. Each flow says which lines
+   can be picked, how to check a quantity, what the confirm/success popups show, and how to save. */
+const fmtQty = v => Number(v).toLocaleString();
+const html = s => ({ html: s });                 // marks a cell value as trusted HTML
+const cellHTML = v => v && v.html !== undefined ? v.html : escapeHTML(String(v ?? ''));
+const flowVisible = {};                          // f -> () => lines currently shown (after search), for select-all
+const FLOWS = {
+  pr: {
+    sel: 'sel3', qty: 'qty3', bar: 'selectbar3', tbody: 'rows3', selAll: 'selAll3',
+    active: () => state.view === 'receipt' && state.receiptMode === 'pr',
+    lines: () => state.prList.filter(x => x.grQty === null),
+    defaultQty: x => x.requestQty,
+    check: (x, q) => q > 0 ? '' : 'จำนวนที่รับต้องมากกว่า 0',
+    barBtn: ['primary', 'ตรวจสอบและบันทึกรับสินค้า'],
+    confirm: () => ({ title: 'ยืนยันการรับสินค้า (อ้างอิงใบขอซื้อ)', btn: ['primary', 'ยืนยันการรับสินค้า'],
+      hint: `จำนวนที่รับจะถูกบวกเพิ่มเข้าจำนวนคงเหลือของสาขา ${state.branch} ทันที`,
+      head: ['ใบขอซื้อ', 'รหัสสินค้า', 'ชื่อสินค้า', 'หน่วยนับ', 'ขอซื้อ', 'รับ'], row: (x, q) => [x.prId, x.itemNo, x.itemName, x.unit, fmtQty(x.requestQty), fmtQty(q)] }),
+    async save(lines) {
+      if (!HAS_BACKEND) { // demo mode: apply on screen only
+        lines.forEach(({ x, q }) => { x.grQty = q; x.receivedDate = new Date().toISOString().slice(0, 10);
+          const s = state.items.find(i => same(i.branch, x.branch) && i.itemNo === x.itemNo); if (s) s.qty += q; });
+        if (!state.prShowHistory) state.prList = state.prList.filter(x => x.grQty === null);
+        return lines.map(({ x, q }) => ({ prId: x.prId, itemNo: x.itemNo, itemName: x.itemName, unit: x.unit, qty: q }));
+      }
+      const data = await callScriptPost({ action: 'receiveGoods', branch: state.branch, lines: lines.map(({ x, q }) => ({ row: x.row, qty: q })) });
+      return data.items;
+    },
+    done: items => ({ title: '&#9989; บันทึกการรับสินค้าเรียบร้อยแล้ว', hint: `เพิ่มเข้าจำนวนคงเหลือของสาขา ${escapeHTML(state.branch)} แล้ว ${items.length} รายการ`,
+      head: ['ใบขอซื้อ', 'รหัสสินค้า', 'ชื่อสินค้า', 'หน่วยนับ', 'จำนวนที่รับ'], row: it => [it.prId, it.itemNo, it.itemName, it.unit, fmtQty(it.qty)] }),
+    after: () => Promise.all([loadPR(true, { overlay: false }), loadItems(true, { overlay: false })])
+  },
+  strReq: {
+    sel: 'sel6', qty: 'qty6', bar: 'selectbar6', tbody: 'rows6',
+    active: () => state.view === 'transfer' && state.transferTab === 'new',
+    lines: () => state.srcItems,
+    defaultQty: () => 1,
+    check: (x, q) => q > 0 ? '' : 'จำนวนที่ขอโอนต้องมากกว่า 0',
+    barBtn: ['primary', 'ตรวจสอบและส่งใบขอโอน'],
+    confirm: () => ({ title: 'ยืนยันใบขอโอนสินค้า (STR)', btn: ['primary', 'ส่งใบขอโอน'],
+      hint: `ส่งคำขอไปยังสาขา ${state.strSource} สต๊อกจะยังไม่เปลี่ยนจนกว่าสาขา ${state.strSource} จะจ่ายและสาขานี้กดรับสินค้า`,
+      head: ['รหัสสินค้า', 'ชื่อสินค้า', 'หน่วยนับ', 'คงเหลือสาขาต้นทาง', 'ขอโอน'], row: (x, q) => [x.itemNo, x.itemName, x.unit, fmtQty(x.qty), fmtQty(q)] }),
+    async save(lines) {
+      const data = await callScriptPost({ action: 'submitSTR', branch: state.branch, fromBranch: state.strSource, items: lines.map(({ x, q }) => ({ itemNo: x.itemNo, requestQty: q })) });
+      return lines.map(({ x, q }) => ({ strId: data.strId, itemNo: x.itemNo, itemName: x.itemName, unit: x.unit, qty: q }));
+    },
+    done: items => ({ title: '&#9989; ส่งใบขอโอนสินค้าเรียบร้อยแล้ว', hint: `เลขที่ <strong>${escapeHTML(items[0].strId)}</strong> ส่งไปยังสาขา ${escapeHTML(state.strSource)} แล้ว ติดตามได้ที่แท็บ &ldquo;สถานะใบขอโอน&rdquo;`,
+      head: ['รหัสสินค้า', 'ชื่อสินค้า', 'หน่วยนับ', 'จำนวนที่ขอ'], row: it => [it.itemNo, it.itemName, it.unit, fmtQty(it.qty)] }),
+    after: () => { state.transferTab = 'status'; return loadSTR('history', { overlay: false }); }
+  },
+  strRecv: {
+    sel: 'sel7', qty: 'qty7', bar: 'selectbar7', tbody: 'rows7', selAll: 'selAll7',
+    active: () => state.view === 'receipt' && state.receiptMode === 'str',
+    lines: () => state.strToReceive,
+    defaultQty: x => x.issueQty,
+    check: (x, q) => q >= 0 && q <= x.issueQty ? '' : 'จำนวนที่รับต้องอยู่ระหว่าง 0 ถึงจำนวนที่จ่ายมา',
+    barBtn: ['primary', 'ตรวจสอบและยืนยันรับสินค้า'],
+    confirm: () => ({ title: 'ยืนยันการรับสินค้าโอน (STR)', btn: ['primary', 'ยืนยันการรับสินค้า'],
+      hint: `จำนวนที่รับจริงจะถูกบวกเข้าจำนวนคงเหลือของสาขา ${state.branch} ถ้ารับน้อยกว่าที่จ่ายมา ระบบจะบันทึกว่าขาด`,
+      head: ['ใบขอโอน', 'รหัสสินค้า', 'ชื่อสินค้า', 'จ่ายมา', 'รับจริง'], row: (x, q) => [x.strId, x.itemNo, x.itemName, fmtQty(x.issueQty), html(escapeHTML(fmtQty(q)) + (q < x.issueQty ? ' <span class="badge out">ขาด ' + escapeHTML(fmtQty(x.issueQty - q)) + '</span>' : ''))] }),
+    async save(lines) {
+      const data = await callScriptPost({ action: 'receiveSTR', branch: state.branch, lines: lines.map(({ x, q }) => ({ row: x.row, qty: q })) });
+      return data.items;
+    },
+    done: items => ({ title: '&#9989; รับสินค้าโอนเรียบร้อยแล้ว', hint: `เพิ่มเข้าจำนวนคงเหลือของสาขา ${escapeHTML(state.branch)} แล้ว ${items.length} รายการ`,
+      head: ['ใบขอโอน', 'รหัสสินค้า', 'ชื่อสินค้า', 'หน่วยนับ', 'จำนวนที่รับ'], row: it => [it.strId, it.itemNo, it.itemName, it.unit, fmtQty(it.qty)] }),
+    after: () => Promise.all([loadSTR('to_receive', { overlay: false }), loadItems(true, { overlay: false })])
+  },
+  strIssue: {
+    sel: 'sel8', qty: 'qty8', bar: 'selectbar8', tbody: 'rows8', selAll: 'selAll8',
+    active: () => state.view === 'issue' && state.issueMode === 'str',
+    lines: () => state.strToIssue,
+    defaultQty: x => Math.max(0, Math.min(x.requestQty, x.onHand)),
+    check(x, q, picked) {
+      if (!(q >= 0 && q <= x.requestQty)) return 'จำนวนที่จ่ายต้องอยู่ระหว่าง 0 ถึงจำนวนที่ขอ';
+      const total = picked.filter(p => p.x.itemNo === x.itemNo).reduce((s, p) => s + p.q, 0);
+      return total > x.onHand ? `สต๊อก ${x.itemNo} ไม่พอ (รวมที่เลือก ${total} / คงเหลือ ${x.onHand})` : '';
+    },
+    barBtn: ['danger', 'ตรวจสอบและจ่ายสินค้า'],
+    confirm: () => ({ title: 'ยืนยันการจ่ายสินค้าตามใบขอโอน', btn: ['danger', 'ยืนยันการจ่ายสินค้า'],
+      hint: `จำนวนที่จ่ายจะถูกหักออกจากสต๊อกสาขา ${state.branch} ทันที และรอให้สาขาปลายทางกดรับ รายการที่จ่ายไม่ครบหรือจ่าย 0 จะถูกปิด`,
+      head: ['ใบขอโอน', 'ไปสาขา', 'รหัสสินค้า', 'ชื่อสินค้า', 'ขอ', 'จ่าย'], row: (x, q) => [x.strId, x.toBranch, x.itemNo, x.itemName, fmtQty(x.requestQty), html(escapeHTML(fmtQty(q)) + (q < x.requestQty ? ' <span class="badge closed">' + (q === 0 ? 'ไม่มีของ' : 'จ่ายไม่ครบ') + '</span>' : ''))] }),
+    async save(lines) {
+      const data = await callScriptPost({ action: 'issueSTR', branch: state.branch, lines: lines.map(({ x, q }) => ({ row: x.row, qty: q })) });
+      return data.items;
+    },
+    done: items => ({ title: '&#9989; จ่ายสินค้าตามใบขอโอนเรียบร้อยแล้ว', hint: `หักออกจากสต๊อกสาขา ${escapeHTML(state.branch)} แล้ว รอสาขาปลายทางกดรับสินค้า`,
+      head: ['ใบขอโอน', 'ไปสาขา', 'รหัสสินค้า', 'ชื่อสินค้า', 'จ่าย'], row: it => [it.strId, it.toBranch, it.itemNo, it.itemName, fmtQty(it.qty)] }),
+    after: () => Promise.all([loadSTR('to_issue', { overlay: false }), loadItems(true, { overlay: false })])
+  }
+};
+// selected lines with their typed quantities, plus the first problem found (if any)
+function flowPicked(f) {
+  const F = FLOWS[f];
+  const picked = F.lines().filter(x => state[F.sel][x.row]).map(x => ({ x, q: Number(state[F.qty][x.row]), raw: state[F.qty][x.row] }));
+  const errors = {};
+  picked.forEach(p => { const e = String(p.raw).trim() === '' || !Number.isFinite(p.q) ? 'กรุณาระบุจำนวน' : F.check(p.x, p.q, picked); if (e) errors[p.x.row] = e; });
+  return { picked, errors };
+}
+function flowCheckbox(f, x) {
+  const F = FLOWS[f];
+  return `<input type="checkbox" data-row="${x.row}" ${state[F.sel][x.row] ? 'checked' : ''} aria-label="เลือก ${escapeHTML(x.itemNo)}">`;
+}
+function flowQtyInput(f, x, bad) {
+  const F = FLOWS[f]; const on = !!state[F.sel][x.row]; const v = state[F.qty][x.row];
+  return `<input class="qty-input${bad ? ' invalid' : ''}" type="number" min="0" step="any" data-row="${x.row}" value="${v !== undefined ? escapeHTML(String(v)) : ''}" ${on ? '' : 'disabled'} placeholder="0">`;
+}
+function renderFlowBar(f) {
+  const F = FLOWS[f]; let bar = $(F.bar);
+  const { picked, errors } = flowPicked(f);
+  if (!F.active() || !picked.length) { if (bar) bar.remove(); return; }
+  if (!bar) {
+    bar = document.createElement('div'); bar.className = 'selectbar'; bar.id = F.bar;
+    bar.innerHTML = `<div class="inner"><div class="msg"></div><button class="btn ${F.barBtn[0]}" type="button">${F.barBtn[1]}</button></div>`;
+    document.body.appendChild(bar);
+    bar.querySelector('button').addEventListener('click', () => openFlowModal(f));
+  }
+  const firstErr = Object.values(errors)[0];
+  bar.querySelector('.msg').innerHTML = `เลือกแล้ว <strong>${picked.length}</strong> รายการ` + (firstErr ? ' — ' + escapeHTML(firstErr) : '');
+  bar.querySelector('button').disabled = !!firstErr || state.savingLines;
+}
+let activeFlow = null;
+function openFlowModal(f) {
+  const F = FLOWS[f]; const { picked, errors } = flowPicked(f);
+  if (!picked.length || Object.keys(errors).length) return;
+  const c = F.confirm(); activeFlow = f;
+  $('lineModalTitle').textContent = c.title; $('lineModalHint').textContent = c.hint;
+  $('lineModalHead').innerHTML = c.head.map((h, i) => `<th${i >= c.head.length - 2 && i > 1 ? ' class="num"' : ''}>${h}</th>`).join('');
+  $('lineModalRows').innerHTML = picked.map(p => '<tr>' + c.row(p.x, p.q).map((v, i, a) => `<td${i >= a.length - 2 && i > 1 ? ' class="num"' : ''}>${cellHTML(v)}</td>`).join('') + '</tr>').join('');
+  const btn = $('lineConfirm'); btn.className = 'btn ' + c.btn[0]; btn.textContent = c.btn[1]; btn.disabled = false;
+  $('lineModal').hidden = false;
+}
+async function submitFlow() {
+  const f = activeFlow; if (!f || state.savingLines) return;
+  const F = FLOWS[f]; const { picked, errors } = flowPicked(f);
+  if (!picked.length || Object.keys(errors).length) return;
+  state.savingLines = true; $('lineConfirm').disabled = true; $('lineConfirm').textContent = 'กำลังบันทึก…'; render();
   try {
-    if (!HAS_BACKEND) {
-      pr.grQty = qty; pr.receivedDate = new Date().toISOString().slice(0, 10);
-      const stockItem = state.items.find(x => same(x.branch, pr.branch) && x.itemNo === pr.itemNo);
-      if (stockItem) stockItem.qty += qty;
-      if (!state.prShowHistory) state.prList = state.prList.filter(x => x !== pr);
-      toast(state.demo ? 'ข้อมูลตัวอย่าง — ยังไม่ได้บันทึกลงชีตจริง' : 'บันทึกบนหน้าจอเท่านั้น — ยังไม่ได้บันทึกลงชีต');
-    } else {
-      await callScriptPost({ action: 'receiveGoods', row: pr.row, prId: pr.prId, branch: pr.branch, itemNo: pr.itemNo, qty });
-      pr.grQty = qty; pr.receivedDate = new Date().toISOString().slice(0, 10);
-      if (!state.prShowHistory) state.prList = state.prList.filter(x => x !== pr);
+    const items = await F.save(picked);
+    state[F.sel] = {}; state[F.qty] = {};
+    closeModal('lineModal');
+    const d = F.done(items);
+    $('doneModalTitle').innerHTML = d.title; $('doneModalHint').innerHTML = d.hint;
+    $('doneModalHead').innerHTML = d.head.map((h, i, a) => `<th${i === a.length - 1 ? ' class="num"' : ''}>${h}</th>`).join('');
+    $('doneModalRows').innerHTML = items.map(it => '<tr>' + d.row(it).map((v, i, a) => `<td${i === a.length - 1 ? ' class="num"' : ''}>${cellHTML(v)}</td>`).join('') + '</tr>').join('');
+    $('doneModal').hidden = false;
+    $('doneModal').dataset.flow = f;
+  } catch (err) { toast('บันทึกไม่สำเร็จ: ' + (err.message || err)); $('lineConfirm').disabled = false; $('lineConfirm').textContent = F.confirm().btn[1]; }
+  finally { state.savingLines = false; render(); }
+}
+// checkbox / quantity / select-all handling for a flow's table
+function bindFlow(f) {
+  const F = FLOWS[f];
+  $(F.tbody).addEventListener('change', e => {
+    const cb = e.target.closest('input[type=checkbox]');
+    if (cb) {
+      const row = cb.dataset.row; const x = F.lines().find(l => String(l.row) === row);
+      if (cb.checked && x) { state[F.sel][row] = true; if (state[F.qty][row] === undefined) state[F.qty][row] = F.defaultQty(x); }
+      else { delete state[F.sel][row]; delete state[F.qty][row]; }
+      render(); return;
     }
-    state.editing3 = null; closeModal('grModal');
-    openGRSuccessModal(`อ้างอิงใบขอซื้อ ${pr.prId}`, [{ itemNo: pr.itemNo, itemName: pr.itemName, unit: pr.unit, qty }]);
-  } catch (err) { toast('บันทึกไม่สำเร็จ: ' + (err.message || err)); }
-  finally { state.saving3 = false; render(); }
+    const qi = e.target.closest('.qty-input'); if (qi) { state[F.qty][qi.dataset.row] = qi.value; render(); }
+  });
+  $(F.tbody).addEventListener('input', e => { const qi = e.target.closest('.qty-input'); if (qi) { state[F.qty][qi.dataset.row] = qi.value; renderFlowBar(f); } });
+  if (F.selAll) $(F.selAll).addEventListener('change', e => {
+    const visible = flowVisible[f] ? flowVisible[f]() : F.lines();
+    visible.forEach(x => {
+      if (e.target.checked) { state[F.sel][x.row] = true; if (state[F.qty][x.row] === undefined) state[F.qty][x.row] = F.defaultQty(x); }
+      else { delete state[F.sel][x.row]; delete state[F.qty][x.row]; }
+    });
+    render();
+  });
+}
+function syncSelAll(f, visible) {
+  const F = FLOWS[f]; if (!F.selAll) return;
+  const n = visible.filter(x => state[F.sel][x.row]).length;
+  const el = $(F.selAll); el.checked = visible.length > 0 && n === visible.length; el.indeterminate = n > 0 && n < visible.length; el.disabled = !visible.length;
 }
 
 /* ---------- saving: direct receipt (no PR, multiple items) ---------- */
@@ -1033,7 +1548,16 @@ function renderBranchView() {
 }
 
 /* ---------- rendering: dashboard ---------- */
-function renderDashboard() { $('branchName0').textContent = state.branch; }
+function renderDashboard() {
+  $('branchName0').textContent = state.branch;
+}
+function renderUser() {
+  const on = HAS_BACKEND && !!state.session;
+  document.querySelectorAll('.js-username').forEach(el => { el.textContent = state.username; });
+  document.querySelectorAll('.js-logout').forEach(el => { el.hidden = !on; });
+  document.querySelectorAll('.js-userwrap').forEach(el => { el.hidden = !on; });
+  $('userline0').hidden = !on;
+}
 
 /* ---------- rendering: inventory (view only) ---------- */
 function renderCards(all) {
@@ -1123,27 +1647,122 @@ function renderReceiptPR() {
   const list = loading ? [] : state.prList;
   $('count3').textContent = loading ? '' : list.length + ' รายการ';
   $('toggleHistory').textContent = state.prShowHistory ? 'ดูเฉพาะรายการค้างรับ' : 'ดูประวัติการรับสินค้า';
+  const { errors } = flowPicked('pr');
   const tbody = $('rows3'); tbody.innerHTML = '';
   list.forEach(pr => {
-    const editing = state.editing3 === pr.row;
     const received = pr.grQty !== null;
+    const checked = !received && !!state.sel3[pr.row];
     const statusCell = received ? `<span class="badge received">รับแล้ว</span>` : `<span class="badge pending">รอรับสินค้า</span>`;
-    const grCell = received ? pr.grQty.toLocaleString()
-      : editing ? `<input class="qty-input" type="number" min="1" step="any" value="${pr.requestQty}" aria-label="จำนวนที่รับสำหรับ ${escapeHTML(pr.prId)}">`
-      : '—';
-    let actions;
-    if (received) actions = '';
-    else if (editing) actions = `<button class="btn primary small" data-act="save" ${state.saving3 ? 'disabled' : ''}>${state.saving3 ? 'กำลังบันทึก…' : 'ยืนยัน'}</button><button class="btn small" data-act="cancel" ${state.saving3 ? 'disabled' : ''}>ยกเลิก</button>`;
-    else actions = `<button class="btn small" data-act="edit">รับสินค้า</button>`;
-    const tr = document.createElement('tr'); tr.dataset.row = pr.row;
-    tr.innerHTML = `<td>${escapeHTML(pr.prId)}</td><td class="hide-sm">${escapeHTML(pr.date)}</td><td>${escapeHTML(pr.itemNo)}</td><td class="name">${escapeHTML(pr.itemName)}</td>` +
-      `<td class="hide-sm unit">${escapeHTML(pr.unit || '—')}</td><td class="num">${pr.remainingQty.toLocaleString()}</td><td class="num">${pr.requestQty.toLocaleString()}</td><td class="num">${grCell}</td>` +
-      `<td class="hide-sm">${statusCell}</td><td class="actions">${actions}</td>`;
+    const tr = document.createElement('tr');
+    tr.className = errors[pr.row] ? 'invalid' : checked ? 'selected' : '';
+    tr.innerHTML = `<td>${received ? '' : flowCheckbox('pr', pr)}</td>` +
+      `<td>${escapeHTML(pr.prId)}</td><td class="hide-sm">${escapeHTML(pr.date)}</td><td>${escapeHTML(pr.itemNo)}</td><td class="name">${escapeHTML(pr.itemName)}</td>` +
+      `<td class="hide-sm unit">${escapeHTML(pr.unit || '—')}</td><td class="num">${pr.remainingQty.toLocaleString()}</td><td class="num">${pr.requestQty.toLocaleString()}</td>` +
+      `<td class="num">${received ? pr.grQty.toLocaleString() : flowQtyInput('pr', pr, !!errors[pr.row])}</td>` +
+      `<td class="hide-sm">${statusCell}</td>`;
     tbody.appendChild(tr);
   });
   const empty = $('empty3'); empty.hidden = list.length > 0;
   if (!list.length) empty.textContent = loading ? 'กำลังโหลด…' : state.prShowHistory ? 'ยังไม่มีรายการขอซื้อสินค้าสำหรับสาขานี้' : 'ไม่มีรายการค้างรับ — รับสินค้าครบทุกรายการแล้ว';
-  const inp = tbody.querySelector('.qty-input'); if (inp) { inp.focus(); inp.select(); }
+  syncSelAll('pr', FLOWS.pr.lines());
+  renderFlowBar('pr');
+}
+
+/* ---------- rendering: goods receipt – STR mode (receive a transfer) ---------- */
+function renderReceiptSTR() {
+  const loading = state.strLoading && !state.strToReceive.length;
+  const list = loading ? [] : state.strToReceive;
+  $('count7').textContent = loading ? '' : list.length + ' รายการรอรับ';
+  const { errors } = flowPicked('strRecv');
+  const tbody = $('rows7'); tbody.innerHTML = '';
+  list.forEach(x => {
+    const tr = document.createElement('tr');
+    tr.className = errors[x.row] ? 'invalid' : state.sel7[x.row] ? 'selected' : '';
+    tr.innerHTML = `<td>${flowCheckbox('strRecv', x)}</td><td>${escapeHTML(x.strId)}</td><td>${escapeHTML(x.fromBranch)}</td><td class="hide-sm">${escapeHTML(x.issuedDate)}</td>` +
+      `<td>${escapeHTML(x.itemNo)}</td><td class="name">${escapeHTML(x.itemName)}</td><td class="hide-sm unit">${escapeHTML(x.unit || '—')}</td>` +
+      `<td class="num">${x.requestQty.toLocaleString()}</td><td class="num">${x.issueQty.toLocaleString()}</td><td class="num">${flowQtyInput('strRecv', x, !!errors[x.row])}</td>`;
+    tbody.appendChild(tr);
+  });
+  const empty = $('empty7'); empty.hidden = list.length > 0;
+  if (!list.length) empty.textContent = loading ? 'กำลังโหลด…' : 'ไม่มีสินค้าโอนที่รอรับ';
+  syncSelAll('strRecv', list);
+  renderFlowBar('strRecv');
+}
+
+/* ---------- rendering: stock transfer request (branch -> main) ---------- */
+const STR_STATUS = { requested: ['pending', 'รอสาขาต้นทางจ่าย'], in_transit: ['transit', 'กำลังจัดส่ง'], received: ['received', 'รับแล้ว'], closed: ['closed', 'ปิด (ไม่มีของ)'] };
+function renderTransfer() {
+  $('branchName6').textContent = state.branch;
+  const isNew = state.transferTab === 'new';
+  $('trTabNew').classList.toggle('active', isNew); $('trTabStatus').classList.toggle('active', !isNew);
+  $('transferNew').hidden = !isNew; $('transferStatus').hidden = isNew;
+  if (isNew) {
+    const others = state.branches.filter(b => !same(b, state.branch));
+    const srcSel = $('strSource');
+    srcSel.innerHTML = '<option value="">เลือกสาขาต้นทาง…</option>' + others.map(b => `<option value="${escapeHTML(b)}">${escapeHTML(b)}</option>`).join('');
+    srcSel.value = others.find(b => same(b, state.strSource)) || '';
+    $('updated6').textContent = !state.strSource ? '' : state.srcLoading ? 'กำลังโหลด…' : 'อัปเดตล่าสุด ' + (state.lastUpdated6 || 'เมื่อสักครู่');
+    const loading = state.srcLoading;
+    const q = state.q6.trim().toLowerCase();
+    const list = loading ? [] : state.srcItems.filter(x => !q || x.itemNo.toLowerCase().includes(q) || x.itemName.toLowerCase().includes(q));
+    const mine = {}; branchItems1(state.items).forEach(x => { mine[x.itemNo] = x.qty; });
+    const { errors } = flowPicked('strReq');
+    $('count6').textContent = loading || !state.strSource ? '' : list.length + ' จาก ' + state.srcItems.length + ' รายการ';
+    const tbody = $('rows6'); tbody.innerHTML = '';
+    list.forEach(x => {
+      const tr = document.createElement('tr');
+      tr.className = errors[x.row] ? 'invalid' : state.sel6[x.row] ? 'selected' : '';
+      tr.innerHTML = `<td>${flowCheckbox('strReq', x)}</td><td>${escapeHTML(x.itemNo)}</td><td class="name">${escapeHTML(x.itemName)}</td>` +
+        `<td class="hide-sm unit">${escapeHTML(x.unit || '—')}</td><td class="num">${x.qty.toLocaleString()}</td>` +
+        `<td class="num">${mine[x.itemNo] === undefined ? '—' : mine[x.itemNo].toLocaleString()}</td><td class="num">${flowQtyInput('strReq', x, !!errors[x.row])}</td>`;
+      tbody.appendChild(tr);
+    });
+    const empty = $('empty6'); empty.hidden = list.length > 0;
+    if (!list.length) empty.textContent = !state.strSource ? 'เลือกสาขาที่ต้องการขอโอนสินค้าด้านบน' : loading ? 'กำลังโหลดรายการสินค้าของสาขา ' + state.strSource + '…' : state.srcItems.length ? 'ไม่พบรายการที่ตรงกับการค้นหา' : 'สาขา ' + state.strSource + ' ยังไม่มีรายการสินค้า';
+  } else {
+    $('updated6').textContent = state.strLoading ? 'กำลังโหลด…' : 'อัปเดตล่าสุด ' + (state.lastUpdated6h || 'เมื่อสักครู่');
+    const list = state.strHistory.filter(x => same(x.toBranch, state.branch));
+    $('count6h').textContent = list.length + ' รายการ (ล่าสุด)';
+    $('rows6h').innerHTML = list.map(x => {
+      const [cls, label] = STR_STATUS[x.status] || ['closed', x.status];
+      return `<tr><td>${escapeHTML(x.strId)}</td><td class="hide-sm">${escapeHTML(x.date)}</td><td>${escapeHTML(x.fromBranch)}</td><td>${escapeHTML(x.itemNo)}</td><td class="name">${escapeHTML(x.itemName)}</td>` +
+        `<td class="num">${x.requestQty.toLocaleString()}</td><td class="num">${x.issueQty === null ? '—' : x.issueQty.toLocaleString()}</td>` +
+        `<td class="num">${x.receiveQty === null || x.status === 'closed' ? '—' : x.receiveQty.toLocaleString()}</td><td><span class="badge ${cls}">${label}</span></td></tr>`;
+    }).join('');
+    const empty = $('empty6h'); empty.hidden = list.length > 0;
+    if (!list.length) empty.textContent = state.strLoading ? 'กำลังโหลด…' : 'ยังไม่มีใบขอโอนสินค้าสำหรับสาขานี้';
+  }
+  renderFlowBar('strReq');
+}
+
+/* ---------- rendering: goods issue – against STR (main branch) ---------- */
+function strIssueVisible() {
+  const q = state.q8.trim().toLowerCase();
+  return state.strToIssue.filter(x => !q || [x.strId, x.toBranch, x.itemNo, x.itemName].some(v => String(v).toLowerCase().includes(q)));
+}
+flowVisible.strIssue = strIssueVisible;
+function renderIssueSTR() {
+  const loading = state.strLoading && !state.strToIssue.length;
+  const list = loading ? [] : strIssueVisible();
+  const { picked, errors } = flowPicked('strIssue');
+  const used = {}; picked.forEach(p => { used[p.x.itemNo] = (used[p.x.itemNo] || 0) + p.q; });
+  $('count8').textContent = loading ? '' : list.length + ' จาก ' + state.strToIssue.length + ' รายการรอจ่าย';
+  const tbody = $('rows8'); tbody.innerHTML = '';
+  list.forEach(x => {
+    const tr = document.createElement('tr');
+    tr.className = errors[x.row] ? 'invalid' : state.sel8[x.row] ? 'selected' : '';
+    const left = x.onHand - (used[x.itemNo] || 0);
+    tr.innerHTML = `<td>${flowCheckbox('strIssue', x)}</td><td>${escapeHTML(x.strId)}</td><td class="hide-sm">${escapeHTML(x.date)}</td><td>${escapeHTML(x.toBranch)}</td>` +
+      `<td>${escapeHTML(x.itemNo)}</td><td class="name">${escapeHTML(x.itemName)}</td><td class="hide-sm unit">${escapeHTML(x.unit || '—')}</td>` +
+      `<td class="num">${x.requestQty.toLocaleString()}</td>` +
+      `<td class="num" title="คงเหลือหลังหักรายการที่เลือก">${x.onHand.toLocaleString()}${used[x.itemNo] ? ` <span class="badge ${left < 0 ? 'out' : 'closed'}">เหลือ ${left.toLocaleString()}</span>` : ''}</td>` +
+      `<td class="num">${flowQtyInput('strIssue', x, !!errors[x.row])}</td>`;
+    tbody.appendChild(tr);
+  });
+  const empty = $('empty8'); empty.hidden = list.length > 0;
+  if (!list.length) empty.textContent = loading ? 'กำลังโหลด…' : state.strToIssue.length ? 'ไม่พบรายการที่ตรงกับการค้นหา' : 'ไม่มีใบขอโอนที่รอจ่าย';
+  syncSelAll('strIssue', list);
+  renderFlowBar('strIssue');
 }
 
 /* ---------- rendering: goods receipt – direct mode (no PR) ---------- */
@@ -1226,7 +1845,7 @@ function renderSelectBar5() {
   let bar = $('selectbar5');
   const items = branchItems1(state.items).filter(x => state.selected5[x.row]);
   const valid = items.filter(x => Number(state.qtyDraft5[x.row]) > 0 && Number(state.qtyDraft5[x.row]) <= x.qty);
-  const show = state.view === 'issue' && items.length > 0;
+  const show = state.view === 'issue' && state.issueMode === 'general' && items.length > 0;
   if (!show) { if (bar) bar.remove(); return; }
   if (!bar) {
     bar = document.createElement('div'); bar.className = 'selectbar'; bar.id = 'selectbar5';
@@ -1249,6 +1868,11 @@ function openIssueModal() {
 /* ---------- master render ---------- */
 function render() {
   const v = state.view;
+  renderUser();
+  $('view-login').hidden = v !== 'login';
+  $('view-transfer').hidden = v !== 'transfer';
+  $('view-replenish').hidden = v !== 'replenish';
+  if (v === 'replenish') { $('branchName9').textContent = state.branch; $('tileTransfer').hidden = !HAS_BACKEND; }
   $('view-branch').hidden = v !== 'branch';
   $('view-dashboard').hidden = v !== 'dashboard';
   $('view-inventory').hidden = v !== 'inventory';
@@ -1260,7 +1884,20 @@ function render() {
   else if (v === 'dashboard') renderDashboard();
   else if (v === 'inventory') renderInventory();
   else if (v === 'purchase') renderPurchase();
-  else if (v === 'issue') renderIssue();
+  else if (v === 'transfer') renderTransfer();
+  else if (v === 'issue') {
+    $('branchName5').textContent = state.branch;
+    const m = state.issueMode;
+    $('issueChoice').hidden = m !== null;
+    $('issueGeneral').hidden = m !== 'general';
+    $('issueSTR').hidden = m !== 'str';
+    $('backToIssueChoice1').hidden = !HAS_BACKEND;
+    $('refresh5').hidden = m === null;
+    $('strPendingBadge').innerHTML = state.strToIssue.length ? `รอจ่าย <strong>${state.strToIssue.length}</strong> รายการ &rarr;` : 'เลือก &rarr;';
+    if (m === 'general') renderIssue();
+    else if (m === 'str') { $('updated5').textContent = state.strLoading ? 'กำลังโหลด…' : 'อัปเดตล่าสุด ' + (state.lastUpdated8 || 'เมื่อสักครู่'); renderIssueSTR(); }
+    else $('updated5').textContent = '';
+  }
   else if (v === 'receipt') {
     $('branchName3').textContent = state.branch;
     $('updated3').textContent = state.receiptMode === 'pr' ? (state.prLoading ? 'กำลังโหลด…' : 'อัปเดตล่าสุด ' + (state.lastUpdated3 || 'เมื่อสักครู่'))
@@ -1268,14 +1905,18 @@ function render() {
     $('receiptChoice').hidden = state.receiptMode !== null;
     $('receiptPR').hidden = state.receiptMode !== 'pr';
     $('receiptDirect').hidden = state.receiptMode !== 'direct';
+    $('receiptSTR').hidden = state.receiptMode !== 'str';
+    $('tileRecvStr').hidden = !HAS_BACKEND;
     $('refresh3').hidden = state.receiptMode === null;
     if (state.receiptMode === 'pr') renderReceiptPR();
     else if (state.receiptMode === 'direct') renderReceiptDirect();
+    else if (state.receiptMode === 'str') { $('updated3').textContent = state.strLoading ? 'กำลังโหลด…' : 'อัปเดตล่าสุด ' + (state.lastUpdated7 || 'เมื่อสักครู่'); renderReceiptSTR(); }
     else { const bar4 = $('selectbar4'); if (bar4) bar4.remove(); }
   }
   if (v !== 'purchase') { const bar = $('selectbar2'); if (bar) bar.remove(); }
   if (!(v === 'receipt' && state.receiptMode === 'direct')) { const bar4 = $('selectbar4'); if (bar4) bar4.remove(); }
-  if (v !== 'issue') { const bar5 = $('selectbar5'); if (bar5) bar5.remove(); }
+  if (!(v === 'issue' && state.issueMode === 'general')) { const bar5 = $('selectbar5'); if (bar5) bar5.remove(); }
+  Object.keys(FLOWS).forEach(f => { if (!FLOWS[f].active()) { const b = $(FLOWS[f].bar); if (b) b.remove(); } });
 }
 
 /* ---------- navigation ---------- */
@@ -1283,15 +1924,28 @@ function goto(view) {
   state.view = view;
   if (view === 'inventory') { state.q1 = ''; $('q1').value = ''; state.status1 = 'all'; state.sort1 = { key: null, dir: 1 }; loadItems(false).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); }); }
   if (view === 'purchase') { state.q2 = ''; $('q2').value = ''; state.sort2 = { key: null, dir: 1 }; state.selected2 = {}; state.qtyDraft2 = {}; loadItems(false).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); }); }
-  if (view === 'issue') { state.q5 = ''; $('q5').value = ''; state.sort5 = { key: null, dir: 1 }; state.selected5 = {}; state.qtyDraft5 = {}; loadItems(false).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); }); }
+  if (view === 'issue') { state.issueMode = HAS_BACKEND ? null : 'general'; if (state.issueMode === 'general') chooseIssueMode('general'); }
   if (view === 'receipt') { state.receiptMode = null; }
+  if (view === 'transfer') {
+    state.transferTab = 'new'; state.q6 = ''; $('q6').value = ''; state.sel6 = {}; state.qty6 = {};
+    if (same(state.strSource, state.branch)) state.strSource = '';
+    if (state.strSource) loadSrcItems({ overlay: true }).then(() => { state.lastUpdated6 = new Date().toLocaleString(); render(); });
+    else state.srcItems = [];
+  }
+  render();
+}
+function chooseIssueMode(mode) {
+  state.issueMode = mode;
+  if (mode === 'general') { state.q5 = ''; $('q5').value = ''; state.sort5 = { key: null, dir: 1 }; state.selected5 = {}; state.qtyDraft5 = {}; loadItems(false).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); }); }
+  if (mode === 'str') { state.q8 = ''; $('q8').value = ''; state.sel8 = {}; state.qty8 = {}; loadSTR('to_issue', { overlay: true }).then(() => { state.lastUpdated8 = new Date().toLocaleString(); render(); }); }
   render();
 }
 function chooseReceiptMode(mode) {
   state.receiptMode = mode;
   // overlay: false — the data was already prefetched right after picking the branch, so the list we
   // already have renders immediately below; this call just quietly refreshes it in the background.
-  if (mode === 'pr') { state.prShowHistory = false; loadPR(false, { overlay: false }).then(() => { state.lastUpdated3 = new Date().toLocaleString(); render(); }); }
+  if (mode === 'pr') { state.prShowHistory = false; state.sel3 = {}; state.qty3 = {}; loadPR(false, { overlay: false }).then(() => { state.lastUpdated3 = new Date().toLocaleString(); render(); }); }
+  if (mode === 'str') { state.sel7 = {}; state.qty7 = {}; loadSTR('to_receive', { overlay: false }).then(() => { state.lastUpdated7 = new Date().toLocaleString(); render(); }); }
   if (mode === 'direct') { state.q4 = ''; $('q4').value = ''; state.sort4 = { key: null, dir: 1 }; state.selected4 = {}; state.qtyDraft4 = {}; loadItems(false, { overlay: false }).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); }); }
   render();
 }
@@ -1308,7 +1962,8 @@ $('continue').addEventListener('click', async () => {
 $('retry').addEventListener('click', () => loadBranches(true));
 $('changeBranch0').addEventListener('click', () => { state.view = 'branch'; render(); });
 document.querySelectorAll('[data-goto]').forEach(el => el.addEventListener('click', () => goto(el.dataset.goto)));
-['toDash1', 'toDash2', 'toDash3', 'toDash5'].forEach(id => $(id).addEventListener('click', () => goto('dashboard')));
+['toDash1', 'toDash3', 'toDash5', 'toDash9'].forEach(id => $(id).addEventListener('click', () => goto('dashboard')));
+['toDash2', 'toDash6'].forEach(id => $(id).addEventListener('click', () => goto('replenish')));
 
 /* inventory (view only) */
 $('q1').addEventListener('input', e => { state.q1 = e.target.value; render(); });
@@ -1346,30 +2001,23 @@ $('prSuccessClose').addEventListener('click', () => { closeModal('prSuccessModal
 document.querySelectorAll('#receiptChoice [data-mode]').forEach(el => el.addEventListener('click', () => chooseReceiptMode(el.dataset.mode)));
 $('backToChoicePR').addEventListener('click', () => { state.receiptMode = null; render(); });
 $('backToChoiceDirect').addEventListener('click', () => { state.receiptMode = null; render(); });
+$('backToChoiceSTR').addEventListener('click', () => { state.receiptMode = null; render(); });
 $('refresh3').addEventListener('click', () => {
   if (state.receiptMode === 'pr') loadPR(true).then(() => { state.lastUpdated3 = new Date().toLocaleString(); render(); });
   else if (state.receiptMode === 'direct') loadItems(true).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); });
+  else if (state.receiptMode === 'str') loadSTR('to_receive', { overlay: true }).then(() => { state.lastUpdated7 = new Date().toLocaleString(); toast('รีเฟรชแล้ว'); render(); });
 });
 
 /* goods receipt: PR mode */
 $('toggleHistory').addEventListener('click', () => { state.prShowHistory = !state.prShowHistory; loadPR(false).then(() => { state.lastUpdated3 = new Date().toLocaleString(); render(); }); });
-let pendingReceipt = null;
-$('rows3').addEventListener('click', e => {
-  const btn = e.target.closest('button[data-act]'); if (!btn || state.saving3) return;
-  const tr = btn.closest('tr'); const act = btn.dataset.act;
-  const pr = state.prList.find(x => String(x.row) === tr.dataset.row);
-  if (act === 'edit') { state.editing3 = pr.row; render(); }
-  else if (act === 'cancel') { state.editing3 = null; render(); }
-  else if (act === 'save') {
-    const raw = tr.querySelector('.qty-input').value;
-    if (raw.trim() === '' || Number(raw) <= 0) { toast('กรุณาระบุจำนวนที่มากกว่า 0'); return; }
-    pendingReceipt = { pr, qty: Number(raw) };
-    $('grModalHint').textContent = `บันทึกจำนวนรับ ${raw} ${pr.unit || ''} รายการ ${pr.itemNo} (${pr.itemName}) ใบขอซื้อ ${pr.prId} จำนวนนี้จะถูกบวกเพิ่มเข้าจำนวนคงเหลือของสาขา ${pr.branch}`;
-    $('grModal').hidden = false;
-  }
+Object.keys(FLOWS).forEach(bindFlow);
+$('lineCancel').addEventListener('click', () => { if (!state.savingLines) { closeModal('lineModal'); activeFlow = null; } });
+$('lineConfirm').addEventListener('click', submitFlow);
+$('doneClose').addEventListener('click', () => {
+  closeModal('doneModal');
+  const f = $('doneModal').dataset.flow;
+  if (f && FLOWS[f].after) Promise.resolve(FLOWS[f].after()).then(() => render());
 });
-$('grCancel').addEventListener('click', () => { closeModal('grModal'); pendingReceipt = null; });
-$('grConfirm').addEventListener('click', () => { if (pendingReceipt && !state.saving3) { const { pr, qty } = pendingReceipt; pendingReceipt = null; submitReceipt(pr, qty); } });
 $('grSuccessClose').addEventListener('click', () => { closeModal('grSuccessModal'); refreshCurrentView(); });
 
 /* goods receipt: direct mode (no PR) */
@@ -1399,7 +2047,50 @@ document.querySelector('#view-issue thead').addEventListener('click', e => {
   const th = e.target.closest('th[data-key]'); if (!th) return;
   state.sort5 = state.sort5.key === th.dataset.key ? { key: th.dataset.key, dir: -state.sort5.dir } : { key: th.dataset.key, dir: 1 }; render();
 });
-$('refresh5').addEventListener('click', () => loadItems(true).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); }));
+$('refresh5').addEventListener('click', () => {
+  if (state.issueMode === 'str') loadSTR('to_issue', { overlay: true }).then(() => { state.lastUpdated8 = new Date().toLocaleString(); toast('รีเฟรชแล้ว'); render(); });
+  else loadItems(true).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); });
+});
+document.querySelectorAll('[data-issue-mode]').forEach(el => el.addEventListener('click', () => chooseIssueMode(el.dataset.issueMode)));
+['backToIssueChoice1', 'backToIssueChoice2'].forEach(id => $(id).addEventListener('click', () => { state.issueMode = null; render(); }));
+$('q8').addEventListener('input', e => { state.q8 = e.target.value; render(); });
+
+/* stock transfer request */
+$('q6').addEventListener('input', e => { state.q6 = e.target.value; render(); });
+$('strSource').addEventListener('change', e => {
+  state.strSource = e.target.value; state.sel6 = {}; state.qty6 = {}; state.srcItems = [];
+  loadSrcItems({ overlay: true }).then(() => { state.lastUpdated6 = new Date().toLocaleString(); render(); });
+});
+$('trTabNew').addEventListener('click', () => { state.transferTab = 'new'; render(); });
+$('trTabStatus').addEventListener('click', () => {
+  state.transferTab = 'status'; render();
+  loadSTR('history', { overlay: true }).then(() => { state.lastUpdated6h = new Date().toLocaleString(); render(); });
+});
+$('refresh6').addEventListener('click', () => {
+  if (state.transferTab === 'new') Promise.all([loadSrcItems({ overlay: true }), loadItems(true, { overlay: false })]).then(() => { state.lastUpdated6 = new Date().toLocaleString(); toast('รีเฟรชแล้ว'); render(); });
+  else loadSTR('history', { overlay: true }).then(() => { state.lastUpdated6h = new Date().toLocaleString(); toast('รีเฟรชแล้ว'); render(); });
+});
+
+/* login */
+$('tabSignIn').addEventListener('click', () => showAuthTab('signin'));
+$('tabSignUp').addEventListener('click', () => showAuthTab('signup'));
+$('signInForm').addEventListener('submit', async e => {
+  e.preventDefault(); $('siError').hidden = true;
+  const login = $('siLogin').value.trim(), password = $('siPassword').value;
+  if (!login || !password) return authError('siError', 'กรุณากรอกชื่อผู้ใช้/เบอร์โทร และรหัสผ่าน');
+  const btn = e.target.querySelector('button[type=submit]'); btn.disabled = true;
+  try { await doSignIn(login, password); } catch (err) { authError('siError', err.message || err); } finally { btn.disabled = false; }
+});
+$('signUpForm').addEventListener('submit', async e => {
+  e.preventDefault(); $('suError').hidden = true;
+  const f = { invite: $('suInvite').value.trim(), username: $('suUsername').value.trim(), phone: $('suPhone').value.trim(), password: $('suPassword').value };
+  if (!f.invite || !f.username || !f.phone || !f.password) return authError('suError', 'กรุณากรอกข้อมูลให้ครบทุกช่อง');
+  if (f.password.length < 6) return authError('suError', 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+  if (f.password !== $('suPassword2').value) return authError('suError', 'รหัสผ่านทั้งสองช่องไม่ตรงกัน');
+  const btn = e.target.querySelector('button[type=submit]'); btn.disabled = true;
+  try { await doSignUp(f); } catch (err) { authError('suError', err.message || err); } finally { btn.disabled = false; }
+});
+document.querySelectorAll('.js-logout').forEach(el => el.addEventListener('click', doSignOut));
 $('rows5').addEventListener('change', e => {
   const cb = e.target.closest('input[type=checkbox]');
   if (cb) {
@@ -1418,15 +2109,15 @@ $('issueReason').addEventListener('input', () => { if ($('issueReason').value.tr
 $('issueSuccessClose').addEventListener('click', () => { closeModal('issueSuccessModal'); refreshCurrentView(); });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeModal('prModal'); closeModal('prSuccessModal'); closeModal('grModal'); closeModal('directModal'); closeModal('grSuccessModal'); closeModal('issueModal'); closeModal('issueSuccessModal'); }
+  if (e.key === 'Escape') { closeModal('prModal'); closeModal('prSuccessModal'); if (!state.savingLines) closeModal('lineModal'); closeModal('doneModal'); closeModal('directModal'); closeModal('grSuccessModal'); closeModal('issueModal'); closeModal('issueSuccessModal'); }
 });
 
-render();
-loadBranches(false);
+if (HAS_BACKEND && !state.session) { state.view = 'login'; render(); }
+else { render(); loadBranches(false); }
 if (CONFIG.AUTO_REFRESH_SECONDS > 0) setInterval(() => {
-  if (state.submitting2 || state.saving3 || state.submitting4 || state.submitting5) return;
-  if ((state.view === 'inventory' || state.view === 'issue') && !state.itemsLoading) loadItems(false, { overlay: false }).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); });
-  if (state.view === 'receipt' && state.receiptMode === 'pr' && state.editing3 === null && !state.prLoading) loadPR(false, { overlay: false }).then(() => { state.lastUpdated3 = new Date().toLocaleString(); render(); });
+  if (state.submitting2 || state.savingLines || state.submitting4 || state.submitting5) return;
+  if ((state.view === 'inventory' || (state.view === 'issue' && state.issueMode === 'general')) && !state.itemsLoading) loadItems(false, { overlay: false }).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); });
+  if (state.view === 'receipt' && state.receiptMode === 'pr' && !Object.keys(state.sel3).length && !state.prLoading) loadPR(false, { overlay: false }).then(() => { state.lastUpdated3 = new Date().toLocaleString(); render(); });
 }, CONFIG.AUTO_REFRESH_SECONDS * 1000);
 </script>
 </body>
