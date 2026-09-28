@@ -73,6 +73,7 @@
   .auth-tabs button { flex: 1; border: 0; background: none; padding: 8px; border-radius: 7px; color: var(--muted); font-weight: 600; }
   .auth-tabs button.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
   .auth-error { color: var(--out-ink); font-size: 13.5px; margin: -4px 0 12px; }
+  .report-entry { border-top: 1px solid var(--border); margin-top: 18px; padding-top: 16px; }
   .userline { font-size: 13px; color: var(--muted); margin-top: 14px; text-align: center; }
   .userline strong { color: var(--text); }
   /* usage report */
@@ -300,6 +301,9 @@
     <select id="branchSelect" disabled><option value="">กำลังโหลดสาขา…</option></select>
     <button class="btn primary" id="continue" type="button" disabled>ดำเนินการต่อ</button>
     <button class="btn retry" id="retry" type="button" hidden>ลองใหม่อีกครั้ง</button>
+    <div class="report-entry" id="reportEntry0" hidden>
+      <button class="btn" id="openReport0" type="button">&#128202; ดูรายงานการใช้สินค้า (ทุกสาขา)</button>
+    </div>
     <div class="userline" id="userline0" hidden>เข้าสู่ระบบในชื่อ <strong class="js-username"></strong> · <button class="link-btn js-logout" type="button">ออกจากระบบ</button></div>
   </section>
 
@@ -457,7 +461,7 @@
         <div class="sub">นับเฉพาะการเบิกสินค้า (GI) ทุกสาขา · <strong>ไม่รวม</strong>การโอนสินค้าระหว่างสาขา (STR)</div>
       </div>
       <div class="head-actions">
-        <button class="btn" id="toDash10" type="button">&#8592; หน้าหลัก</button>
+        <button class="btn" id="toDash10" type="button">&#8592; ย้อนกลับ</button>
         <button class="btn" id="refresh10" type="button">&#8635; รีเฟรช</button>
       </div>
     </header>
@@ -953,7 +957,6 @@ const CONFIG = {
   // ("publishable" sb_publishable_... or legacy "anon"). NEVER put the secret / service_role key here.
   SUPABASE_URL: 'https://rxiszjmvcpukvtkstday.supabase.co',          // e.g. 'https://abcdefgh.supabase.co'
   SUPABASE_KEY: 'sb_publishable_xqTfP6U6CYtgsDOjKNrCQw_1OcQGqFT',
-  
   // Staff sign in with their own account. New accounts need the invite code set in app_settings (5-upgrade-login-str.sql).
 
   // Optional read-only mode (no database): paste the Google Sheet link
@@ -999,7 +1002,7 @@ const state = {
   issueMode: null, // null (choice, main branch only) | 'general' | 'str'
   q5: '', sort5: { key: null, dir: 1 }, selected5: {}, qtyDraft5: {}, submitting5: false,
   // login
-  session: null, username: '',
+  session: null, username: '', role: '',
   // multi-line flows: PR receipt (3), STR request (6), STR receipt (7), STR issue (8)
   sel3: {}, qty3: {}, sel6: {}, qty6: {}, sel7: {}, qty7: {}, sel8: {}, qty8: {},
   q6: '', q8: '', transferTab: 'new', strSource: '', srcItems: [], srcLoading: false,
@@ -1014,7 +1017,8 @@ const SESSION_KEY = 'stockcheck.session';
 function sessionLoad() { try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch (e) { return null; } }
 function sessionSave(s) { try { s ? localStorage.setItem(SESSION_KEY, JSON.stringify(s)) : localStorage.removeItem(SESSION_KEY); } catch (e) {} }
 state.session = HAS_BACKEND ? sessionLoad() : null;
-if (state.session) state.username = state.session.username || '';
+if (state.session) { state.username = state.session.username || ''; state.role = state.session.role || ''; }
+const isManager = () => HAS_BACKEND && state.role === 'manager';
 
 /* ---------- loading bar + full-screen busy overlay ---------- */
 let busyCount = 0, overlayCount = 0;
@@ -1171,6 +1175,11 @@ async function callSupabase(params, opts) {
     if (res.status === 404) throw new Error('ไม่พบฟังก์ชัน ' + fn + ' ในฐานข้อมูล — ได้รัน 1-setup.sql และ 5-upgrade-login-str.sql แล้วหรือยัง?');
     const msg = (data && (data.message || data.error)) || ('HTTP ' + res.status);
     if (msg === 'SESSION_EXPIRED') { sessionExpired(); throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง'); }
+    if (msg === 'MANAGER_ONLY') {                 // role was changed to staff while the page was open
+      state.role = 'staff'; if (state.session) { state.session.role = 'staff'; sessionSave(state.session); }
+      if (state.view === 'report') { state.view = rp.back || 'dashboard'; render(); }
+      throw new Error('รายงานนี้สำหรับผู้จัดการเท่านั้น');
+    }
     throw new Error(msg);
   }
   if (!data || !data.ok) throw new Error((data && data.error) || 'ฐานข้อมูลส่งข้อผิดพลาดกลับมา');
@@ -1195,7 +1204,8 @@ async function loadBranches(fresh) {
     if (HAS_BACKEND) {
       const data = await callScriptGet({ action: 'branches' });
       state.branches = uniq(data.branches); state.demo = false; banner('');
-      state.username = data.username || state.username;
+      state.username = data.username || state.username; state.role = data.role || 'staff';
+      if (state.session && state.session.role !== state.role) { state.session.role = state.role; sessionSave(state.session); }
       cacheSet(state.branches);
     } else if (CONFIG.SHEET_URL) {
       const data = await withBusy(loadFromSheet()); state.demo = false;
@@ -1317,8 +1327,8 @@ async function doSignUp(f) {
   toast('สมัครสมาชิกเรียบร้อย ยินดีต้อนรับ ' + data.username);
 }
 function afterAuth(data) {
-  state.session = { token: data.session, username: data.username };
-  state.username = data.username; sessionSave(state.session);
+  state.session = { token: data.session, username: data.username, role: data.role || 'staff' };
+  state.username = data.username; state.role = state.session.role; sessionSave(state.session);
   ['siPassword', 'suPassword', 'suPassword2', 'suInvite'].forEach(id => { $(id).value = ''; });
   state.view = 'branch'; state.loaded = false; render();
   loadBranches(true);
@@ -1326,7 +1336,7 @@ function afterAuth(data) {
 async function doSignOut() {
   if (HAS_BACKEND && state.session) callScriptPost({ action: 'signOut' }, { overlay: false }).catch(() => {});
   sessionSave(null);
-  Object.assign(state, { session: null, username: '', branch: '', view: 'login', loaded: false, items: [], prList: [],
+  Object.assign(state, { session: null, username: '', role: '', branch: '', view: 'login', loaded: false, items: [], prList: [],
     srcItems: [], strSource: '', strToIssue: [], strToReceive: [], strHistory: [] });
   banner(''); render();
 }
@@ -1657,14 +1667,15 @@ function renderBranchView() {
 /* ---------- rendering: dashboard ---------- */
 function renderDashboard() {
   $('branchName0').textContent = state.branch;
-  $('tileReport').hidden = !HAS_BACKEND;
+  $('tileReport').hidden = !isManager();
 }
 function renderUser() {
   const on = HAS_BACKEND && !!state.session;
-  document.querySelectorAll('.js-username').forEach(el => { el.textContent = state.username; });
+  document.querySelectorAll('.js-username').forEach(el => { el.textContent = state.username + (isManager() ? ' (ผู้จัดการ)' : ''); });
   document.querySelectorAll('.js-logout').forEach(el => { el.hidden = !on; });
   document.querySelectorAll('.js-userwrap').forEach(el => { el.hidden = !on; });
   $('userline0').hidden = !on;
+  $('reportEntry0').hidden = !isManager();
 }
 
 /* ---------- rendering: inventory (view only) ---------- */
@@ -2244,7 +2255,7 @@ function goto(view) {
   if (view === 'purchase') { state.q2 = ''; $('q2').value = ''; state.sort2 = { key: null, dir: 1 }; state.selected2 = {}; state.qtyDraft2 = {}; loadItems(false).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); }); }
   if (view === 'issue') { state.issueMode = HAS_BACKEND ? null : 'general'; if (state.issueMode === 'general') chooseIssueMode('general'); }
   if (view === 'receipt') { state.receiptMode = null; }
-  if (view === 'report') openReport();
+  if (view === 'report') { if (!isManager()) { toast('รายงานนี้สำหรับผู้จัดการเท่านั้น'); state.view = rp.back || 'dashboard'; } else openReport(); }
   if (view === 'transfer') {
     state.transferTab = 'new'; state.q6 = ''; $('q6').value = ''; state.sel6 = {}; state.qty6 = {};
     if (same(state.strSource, state.branch)) state.strSource = '';
@@ -2281,7 +2292,7 @@ $('continue').addEventListener('click', async () => {
 $('retry').addEventListener('click', () => loadBranches(true));
 $('changeBranch0').addEventListener('click', () => { state.view = 'branch'; render(); });
 document.querySelectorAll('[data-goto]').forEach(el => el.addEventListener('click', () => goto(el.dataset.goto)));
-['toDash1', 'toDash3', 'toDash5', 'toDash9', 'toDash10'].forEach(id => $(id).addEventListener('click', () => goto('dashboard')));
+['toDash1', 'toDash3', 'toDash5', 'toDash9'].forEach(id => $(id).addEventListener('click', () => goto('dashboard')));
 ['toDash2', 'toDash6'].forEach(id => $(id).addEventListener('click', () => goto('replenish')));
 
 /* inventory (view only) */
@@ -2390,7 +2401,10 @@ $('refresh6').addEventListener('click', () => {
   else loadSTR('history', { overlay: true }).then(() => { state.lastUpdated6h = new Date().toLocaleString(); toast('รีเฟรชแล้ว'); render(); });
 });
 
-/* usage report */
+/* usage report – opened from the branch picker (no branch needed) or the dashboard tile */
+$('openReport0').addEventListener('click', () => { rp.back = 'branch'; goto('report'); });
+$('tileReport').addEventListener('click', () => { rp.back = 'dashboard'; }, true);   // runs before the generic data-goto handler
+$('toDash10').addEventListener('click', () => { rpHideTip(); state.view = rp.back === 'branch' || !state.branch ? 'branch' : 'dashboard'; render(); });
 $('rpItem').addEventListener('change', e => { rp.itemNo = e.target.value; try { localStorage.setItem(RP_ITEM_KEY, rp.itemNo); } catch (x) {} loadReport(); });
 $('rpRange').addEventListener('click', e => { const b = e.target.closest('button[data-range]'); if (!b) return; rpSetRange(b.dataset.range); loadReport(); });
 $('rpGroup').addEventListener('click', e => { const b = e.target.closest('button[data-group]'); if (!b) return; rp.group = b.dataset.group; loadReport(); });
