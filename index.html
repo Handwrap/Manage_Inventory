@@ -377,7 +377,7 @@
         <button class="btn" id="refresh1" type="button">&#8635; รีเฟรช</button>
       </div>
     </header>
-    <div class="banner">หน้านี้สำหรับ <strong>ตรวจสอบสต๊อกเท่านั้น</strong> ไม่สามารถแก้ไขจำนวนได้ที่นี่ หากต้องการปรับปรุงจำนวนสต๊อก กรุณาใช้เมนู &ldquo;รับสินค้า&rdquo; หรือ &ldquo;เบิกสินค้า&rdquo;</div>
+    <div class="banner"><span id="invBanner"></span></div>
     <section class="cards" id="cards1" aria-label="สรุปสต๊อกสินค้า"></section>
     <div class="toolbar">
       <label class="search"><input id="q1" type="search" placeholder="ค้นหาด้วยรหัสสินค้าหรือชื่อสินค้า" autocomplete="off" aria-label="ค้นหาสินค้า"></label>
@@ -392,6 +392,7 @@
               <th data-key="itemName" aria-sort="none"><button type="button">ชื่อสินค้า <span class="arrow">&#9650;</span></button></th>
               <th class="hide-sm">หน่วยนับ</th>
               <th data-key="qty" class="num" aria-sort="none"><button type="button">จำนวนคงเหลือ <span class="arrow">&#9650;</span></button></th>
+              <th class="num">ขั้นต่ำ</th>
               <th class="hide-sm">สถานะ</th>
             </tr>
           </thead>
@@ -462,6 +463,49 @@
         </table>
       </div>
       <div class="empty" id="empty2" hidden></div>
+    </div>
+  </section>
+
+  <!-- STEP 3g: Restock – low / out-of-stock items, request them as PR or STR in one go -->
+  <section id="view-restock" hidden>
+    <header class="top">
+      <div>
+        <h2 class="pagetitle">เติมสินค้าที่หมด / ใกล้หมด</h2>
+        <div class="sub">สาขา: <strong id="branchName11"></strong> &middot; <span id="updated11"></span></div>
+      </div>
+      <div class="head-actions">
+        <button class="btn" id="toDash11" type="button">&#8592; หน้าหลัก</button>
+        <button class="btn" id="refresh11" type="button">&#8635; รีเฟรช</button>
+      </div>
+    </header>
+    <div class="rp-filters">
+      <div class="fld">แสดง<div class="seg" id="rsFilter">
+        <button type="button" data-f="all">ทั้งหมด</button><button type="button" data-f="out">หมด</button><button type="button" data-f="low">ใกล้หมด</button>
+      </div></div>
+      <label class="fld">ถ้าขอโอน (STR) ขอจากสาขา<select id="rsSource"></select></label>
+      <div class="fld" style="flex:1;min-width:220px;font-weight:400">
+        <span>จำนวนแนะนำ = เติมให้ถึง <strong>2 เท่าของขั้นต่ำ</strong> หักด้วยของที่ &ldquo;รอเข้า&rdquo; (ใบขอซื้อ/ใบขอโอนที่ยังไม่ได้รับ) · แก้จำนวนได้</span>
+      </div>
+    </div>
+    <div class="table-box">
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:36px"><input type="checkbox" id="selAll11" aria-label="เลือกทั้งหมด"></th>
+              <th>รหัสสินค้า</th>
+              <th>ชื่อสินค้า</th>
+              <th class="num">คงเหลือ</th>
+              <th class="num">ขั้นต่ำ</th>
+              <th class="num">รอเข้า</th>
+              <th class="num" id="rsSrcHead">มีที่สาขาต้นทาง</th>
+              <th class="num">จำนวนที่ขอ</th>
+            </tr>
+          </thead>
+          <tbody id="rows11"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="empty11" hidden></div>
     </div>
   </section>
 
@@ -967,7 +1011,8 @@
 const CONFIG = {
   // Supabase > Project Settings > API (or "Connect"): the Project URL and the PUBLIC key
   // ("publishable" sb_publishable_... or legacy "anon"). NEVER put the secret / service_role key here.
-  SUPABASE_URL: 'https://rxiszjmvcpukvtkstday.supabase.co',               // e.g. 'https://abcdefgh.supabase.co'
+          // e.g. 'https://abcdefgh.supabase.co'
+  SUPABASE_URL: 'https://rxiszjmvcpukvtkstday.supabase.co',             // e.g. 'https://abcdefgh.supabase.co'
   SUPABASE_KEY: 'sb_publishable_xqTfP6U6CYtgsDOjKNrCQw_1OcQGqFT',
   // Staff sign in with their own account. New accounts need the invite code set in app_settings (5-upgrade-login-str.sql).
 
@@ -1019,6 +1064,9 @@ const state = {
   sel3: {}, qty3: {}, sel6: {}, qty6: {}, sel7: {}, qty7: {}, sel8: {}, qty8: {},
   q6: '', q8: '', transferTab: 'new', strSource: '', srcItems: [], srcLoading: false,
   strToIssue: [], strToReceive: [], strHistory: [], strLoading: false, savingLines: false,
+  minDraft: {}, savingMin: false,
+  // restock (low / out items -> PR or STR in one go)
+  sel11: {}, qty11: {}, rsFilter: 'all', rsSource: '', stockAll: [], rsLoading: false,
   reqId: 0
 };
 const $ = id => document.getElementById(id);
@@ -1063,7 +1111,9 @@ async function prefetchBranchData() {
 /* ---------- helpers ---------- */
 const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 const same = (a, b) => String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
-function statusOf(qty) { return qty <= 0 ? 'out' : qty <= CONFIG.LOW_STOCK_THRESHOLD ? 'low' : 'ok'; }
+// minQty = this branch's minimum for the item (null = the default LOW_STOCK_THRESHOLD)
+const minOf = x => (x && x.minQty !== null && x.minQty !== undefined) ? x.minQty : CONFIG.LOW_STOCK_THRESHOLD;
+function statusOf(qty, minQty) { const m = minQty === null || minQty === undefined ? CONFIG.LOW_STOCK_THRESHOLD : minQty; return qty <= 0 ? 'out' : qty <= m ? 'low' : 'ok'; }
 const STATUS_LABEL = { ok: 'มีสินค้า', low: 'สินค้าใกล้หมด', out: 'สินค้าหมด' };
 function escapeHTML(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 function toast(msg) {
@@ -1166,6 +1216,8 @@ const RPC = {
   issueSTR:      b => ['issue_str',      { p_branch: b.branch, p_lines: b.lines }],
   receiveSTR:    b => ['receive_str',    { p_branch: b.branch, p_lines: b.lines }],
   catalog:       p => ['get_item_catalog', {}],
+  stockAll:      p => ['get_stock_all', {}],
+  setMin:        b => ['set_min_qty', { p_branch: b.branch, p_lines: b.lines }],
   usage:         p => ['get_usage_report', { p_item_no: p.itemNo, p_from: p.from, p_to: p.to, p_group: p.group }]
 };
 const NO_SESSION = new Set(['sign_up', 'sign_in']);
@@ -1188,9 +1240,10 @@ async function callSupabase(params, opts) {
     const msg = (data && (data.message || data.error)) || ('HTTP ' + res.status);
     if (msg === 'SESSION_EXPIRED') { sessionExpired(); throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง'); }
     if (msg === 'MANAGER_ONLY') {                 // role was changed to staff while the page was open
+      state.minDraft = {};
       state.role = 'staff'; if (state.session) { state.session.role = 'staff'; sessionSave(state.session); }
       if (state.view === 'report') { state.view = rp.back || 'dashboard'; render(); }
-      throw new Error('รายงานนี้สำหรับผู้จัดการเท่านั้น');
+      throw new Error('ส่วนนี้สำหรับผู้จัดการเท่านั้น');
     }
     throw new Error(msg);
   }
@@ -1199,7 +1252,7 @@ async function callSupabase(params, opts) {
 }
 const callScriptGet = callSupabase;
 const callScriptPost = callSupabase;
-const mapItems = list => list.map(x => ({ row: x.row, branch: String(x.branch), itemNo: String(x.itemNo), itemName: String(x.itemName), unit: String(x.unit || ''), qty: toNumber(x.qty) }));
+const mapItems = list => list.map(x => ({ row: x.row, branch: String(x.branch), itemNo: String(x.itemNo), itemName: String(x.itemName), unit: String(x.unit || ''), qty: toNumber(x.qty), minQty: x.minQty === null || x.minQty === undefined || x.minQty === '' ? null : toNumber(x.minQty) }));
 const CACHE_KEY = 'stockcheck.branches.' + CONFIG.SUPABASE_URL;
 function cacheGet() { try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '[]'); } catch (e) { return []; } }
 function cacheSet(v) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(v)); } catch (e) {} }
@@ -1396,6 +1449,27 @@ const fmtQty = v => Number(v).toLocaleString();
 const html = s => ({ html: s });                 // marks a cell value as trusted HTML
 const cellHTML = v => v && v.html !== undefined ? v.html : escapeHTML(String(v ?? ''));
 const flowVisible = {};                          // f -> () => lines currently shown (after search), for select-all
+// restock lines: this branch's items that are out / at-or-below their minimum, with what's already on the way
+function rsIncoming() {
+  const inc = {};
+  const add = (k, v) => { inc[k] = (inc[k] || 0) + Number(v || 0); };
+  state.prList.filter(x => x.grQty === null && same(x.branch, state.branch)).forEach(x => add(x.itemNo, x.requestQty));
+  state.strHistory.filter(x => same(x.toBranch, state.branch)).forEach(x => {
+    if (x.status === 'requested') add(x.itemNo, x.requestQty); else if (x.status === 'in_transit') add(x.itemNo, x.issueQty);
+  });
+  return inc;
+}
+function rsLines() {
+  const inc = rsIncoming();
+  return branchItems1(state.items).map(x => {
+    const st = statusOf(x.qty, x.minQty);
+    const target = Math.max(2 * minOf(x), 1);
+    const incoming = inc[x.itemNo] || 0;
+    const srcRow = state.stockAll.find(r => same(r.branch, state.rsSource) && r.itemNo === x.itemNo);
+    return Object.assign({}, x, { st, incoming, suggest: Math.max(0, Math.ceil(target - x.qty - incoming)), srcQty: srcRow ? Number(srcRow.qty) : null });
+  }).filter(x => x.st !== 'ok');
+}
+const rsVisible = () => rsLines().filter(x => state.rsFilter === 'all' || x.st === state.rsFilter);
 const FLOWS = {
   pr: {
     sel: 'sel3', qty: 'qty3', bar: 'selectbar3', tbody: 'rows3', selAll: 'selAll3',
@@ -1456,6 +1530,44 @@ const FLOWS = {
     done: items => ({ title: '&#9989; รับสินค้าโอนเรียบร้อยแล้ว', hint: `เพิ่มเข้าจำนวนคงเหลือของสาขา ${escapeHTML(state.branch)} แล้ว ${items.length} รายการ`,
       head: ['ใบขอโอน', 'รหัสสินค้า', 'ชื่อสินค้า', 'หน่วยนับ', 'จำนวนที่รับ'], row: it => [it.strId, it.itemNo, it.itemName, it.unit, fmtQty(it.qty)] }),
     after: () => Promise.all([loadSTR('to_receive', { overlay: false }), loadItems(true, { overlay: false })])
+  },
+  restockPR: {
+    sel: 'sel11', qty: 'qty11', bar: 'selectbar11', tbody: 'rows11', selAll: 'selAll11',
+    active: () => state.view === 'restock',
+    lines: rsLines,
+    defaultQty: x => x.suggest || 1,
+    check: (x, q) => q > 0 ? '' : 'จำนวนที่ขอต้องมากกว่า 0',
+    barBtn: ['primary', 'ขอซื้อ (PR)'],
+    confirm: () => ({ title: 'ยืนยันใบขอซื้อสินค้า (PR)', btn: ['primary', 'ส่งใบขอซื้อ'],
+      hint: `ขอซื้อสินค้าที่หมด/ใกล้หมดของสาขา ${state.branch} · เมื่อของมาถึงให้บันทึกที่ “รับสินค้า”`,
+      head: ['รหัสสินค้า', 'ชื่อสินค้า', 'หน่วยนับ', 'คงเหลือ', 'ขอซื้อ'], row: (x, q) => [x.itemNo, x.itemName, x.unit, fmtQty(x.qty), fmtQty(q)] }),
+    async save(lines) {
+      const items = lines.map(({ x, q }) => ({ itemNo: x.itemNo, itemName: x.itemName, unit: x.unit, qty: x.qty, requestQty: q }));
+      const data = await callScriptPost({ action: 'submitPR', branch: state.branch, items });
+      return items.map(it => Object.assign({ docNo: data.prId }, it));
+    },
+    done: items => ({ title: '&#9989; ส่งใบขอซื้อเรียบร้อยแล้ว', hint: `เลขที่ <strong>${escapeHTML(items[0].docNo)}</strong> · รายการเหล่านี้จะแสดงเป็น &ldquo;รอเข้า&rdquo; จนกว่าจะรับสินค้า`,
+      head: ['รหัสสินค้า', 'ชื่อสินค้า', 'หน่วยนับ', 'จำนวนที่ขอ'], row: it => [it.itemNo, it.itemName, it.unit, fmtQty(it.requestQty)] }),
+    after: () => openRestock()
+  },
+  restockSTR: {
+    sel: 'sel11', qty: 'qty11', bar: 'selectbar11', tbody: 'rows11', noBind: true,
+    active: () => state.view === 'restock',
+    lines: rsLines,
+    defaultQty: x => x.suggest || 1,
+    check: (x, q) => !state.rsSource ? 'เลือกสาขาที่จะขอโอนก่อน' : x.srcQty === null ? `สาขา ${state.rsSource} ไม่มีสินค้า ${x.itemNo}` : q > 0 ? '' : 'จำนวนที่ขอต้องมากกว่า 0',
+    barBtn: ['primary', 'ขอโอน (STR)'],
+    confirm: () => ({ title: `ยืนยันใบขอโอนสินค้า (STR) จากสาขา ${state.rsSource}`, btn: ['primary', 'ส่งใบขอโอน'],
+      hint: `ส่งคำขอไปยังสาขา ${state.rsSource} · สต๊อกจะเปลี่ยนเมื่อสาขา ${state.rsSource} จ่ายและสาขานี้กดรับสินค้า`,
+      head: ['รหัสสินค้า', 'ชื่อสินค้า', 'หน่วยนับ', `มีที่ ${state.rsSource}`, 'ขอโอน'],
+      row: (x, q) => [x.itemNo, x.itemName, x.unit, fmtQty(x.srcQty), html(escapeHTML(fmtQty(q)) + (q > x.srcQty ? ' <span class="badge low">เกินที่มี</span>' : ''))] }),
+    async save(lines) {
+      const data = await callScriptPost({ action: 'submitSTR', branch: state.branch, fromBranch: state.rsSource, items: lines.map(({ x, q }) => ({ itemNo: x.itemNo, requestQty: q })) });
+      return lines.map(({ x, q }) => ({ docNo: data.strId, itemNo: x.itemNo, itemName: x.itemName, unit: x.unit, requestQty: q }));
+    },
+    done: items => ({ title: '&#9989; ส่งใบขอโอนเรียบร้อยแล้ว', hint: `เลขที่ <strong>${escapeHTML(items[0].docNo)}</strong> ส่งไปยังสาขา ${escapeHTML(state.rsSource)} แล้ว · จะแสดงเป็น &ldquo;รอเข้า&rdquo; จนกว่าจะรับสินค้า`,
+      head: ['รหัสสินค้า', 'ชื่อสินค้า', 'หน่วยนับ', 'จำนวนที่ขอ'], row: it => [it.itemNo, it.itemName, it.unit, fmtQty(it.requestQty)] }),
+    after: () => openRestock()
   },
   strIssue: {
     sel: 'sel8', qty: 'qty8', bar: 'selectbar8', tbody: 'rows8', selAll: 'selAll8',
@@ -1552,7 +1664,7 @@ function bindFlow(f) {
     }
     const qi = e.target.closest('.qty-input'); if (qi) { state[F.qty][qi.dataset.row] = qi.value; render(); }
   });
-  $(F.tbody).addEventListener('input', e => { const qi = e.target.closest('.qty-input'); if (qi) { state[F.qty][qi.dataset.row] = qi.value; renderFlowBar(f); } });
+  $(F.tbody).addEventListener('input', e => { const qi = e.target.closest('.qty-input'); if (qi) { state[F.qty][qi.dataset.row] = qi.value; f === 'restockPR' ? renderRestockBar() : renderFlowBar(f); } });
   if (F.selAll) $(F.selAll).addEventListener('change', e => {
     const visible = flowVisible[f] ? flowVisible[f]() : F.lines();
     visible.forEach(x => {
@@ -1681,11 +1793,81 @@ function renderDashboard() {
   $('branchName0').textContent = state.branch;
   renderTodo();
 }
+/* ---------- restock screen ---------- */
+async function openRestock() {
+  state.rsLoading = true; render();
+  try {
+    const [all] = await Promise.all([
+      callScriptGet({ action: 'stockAll' }, { overlay: !state.stockAll.length }),
+      loadItems(true, { overlay: false }), loadPR(false, { overlay: false }), loadSTR('history', { overlay: false })
+    ]);
+    state.stockAll = all.items;
+    if (!state.rsSource || same(state.rsSource, state.branch)) state.rsSource = rsBestSource();
+    // pre-select everything that still needs topping up (after what's already on the way)
+    state.sel11 = {}; state.qty11 = {};
+    rsLines().filter(x => x.suggest > 0).forEach(x => { state.sel11[x.row] = true; state.qty11[x.row] = x.suggest; });
+    state.lastUpdated11 = new Date().toLocaleString();
+  } catch (err) { banner('<strong>โหลดข้อมูลไม่สำเร็จ</strong> ' + escapeHTML(err.message || err), true); }
+  finally { state.rsLoading = false; render(); }
+}
+// default STR source = the other branch holding the most of the items that need restocking
+function rsBestSource() {
+  const need = new Set(rsLines().map(x => x.itemNo)); const tot = {};
+  state.stockAll.forEach(r => { if (!same(r.branch, state.branch) && need.has(r.itemNo)) tot[r.branch] = (tot[r.branch] || 0) + Number(r.qty); });
+  const best = Object.entries(tot).sort((a, b) => b[1] - a[1])[0];
+  return best ? best[0] : '';
+}
+flowVisible.restockPR = rsVisible;
+function renderRestock() {
+  $('branchName11').textContent = state.branch;
+  $('updated11').textContent = state.rsLoading ? 'กำลังโหลด…' : 'อัปเดตล่าสุด ' + (state.lastUpdated11 || 'เมื่อสักครู่');
+  document.querySelectorAll('#rsFilter button').forEach(b => b.classList.toggle('active', b.dataset.f === state.rsFilter));
+  const others = state.branches.filter(b => !same(b, state.branch));
+  const tot = {}; const need = new Set(rsLines().map(x => x.itemNo));
+  state.stockAll.forEach(r => { if (need.has(r.itemNo)) tot[r.branch] = (tot[r.branch] || 0) + Number(r.qty); });
+  $('rsSource').innerHTML = '<option value="">— เลือกสาขา —</option>' + others.map(b => `<option value="${escapeHTML(b)}">${escapeHTML(b)}${tot[b] ? ` (มีของที่ขาด รวม ${fmtN(tot[b])})` : ' (ไม่มีของที่ขาด)'}</option>`).join('');
+  $('rsSource').value = others.find(b => same(b, state.rsSource)) || '';
+  $('rsSrcHead').textContent = state.rsSource ? `มีที่ ${state.rsSource}` : 'มีที่สาขาต้นทาง';
+  const list = state.rsLoading && !state.stockAll.length ? [] : rsVisible();
+  const { errors } = flowPicked('restockPR');
+  $('rows11').innerHTML = list.map(x => {
+    const on = !!state.sel11[x.row];
+    const src = x.srcQty === null ? `<span style="color:var(--muted)">${state.rsSource ? 'ไม่มีสินค้านี้' : '—'}</span>` : fmtN(x.srcQty);
+    return `<tr class="${errors[x.row] ? 'invalid' : on ? 'selected' : ''}"><td>${flowCheckbox('restockPR', x)}</td>` +
+      `<td>${escapeHTML(x.itemNo)}</td><td class="name">${escapeHTML(x.itemName)} <span class="badge ${x.st}">${STATUS_LABEL[x.st]}</span></td>` +
+      `<td class="num">${fmtN(x.qty)} <span class="unit" style="color:var(--muted)">${escapeHTML(x.unit || '')}</span></td>` +
+      `<td class="num">${x.minQty === null ? `<span style="color:var(--muted)">${CONFIG.LOW_STOCK_THRESHOLD}</span>` : fmtN(x.minQty)}</td>` +
+      `<td class="num">${x.incoming ? `<span class="badge transit">${fmtN(x.incoming)}</span>` : '<span style="color:var(--muted)">–</span>'}</td>` +
+      `<td class="num">${src}</td><td class="num">${flowQtyInput('restockPR', x, !!errors[x.row])}</td></tr>`;
+  }).join('');
+  const empty = $('empty11'); empty.hidden = list.length > 0;
+  if (!list.length) empty.textContent = state.rsLoading ? 'กำลังโหลด…' : rsLines().length ? 'ไม่มีรายการในตัวกรองนี้' : '✓ ไม่มีสินค้าหมดหรือใกล้หมดในสาขานี้';
+  syncSelAll('restockPR', list);
+  renderRestockBar();
+}
+function renderRestockBar() {
+  let bar = $('selectbar11');
+  const pr = flowPicked('restockPR'), str = flowPicked('restockSTR');
+  if (state.view !== 'restock' || !pr.picked.length) { if (bar) bar.remove(); return; }
+  if (!bar) {
+    bar = document.createElement('div'); bar.className = 'selectbar'; bar.id = 'selectbar11';
+    bar.innerHTML = `<div class="inner"><div class="msg"></div><div class="rs-btns"><button class="btn" type="button" data-f="restockSTR"></button> <button class="btn primary" type="button" data-f="restockPR">ขอซื้อ (PR)</button></div></div>`;
+    document.body.appendChild(bar);
+    bar.addEventListener('click', e => { const b = e.target.closest('button[data-f]'); if (b) openFlowModal(b.dataset.f); });
+  }
+  const prErr = Object.values(pr.errors)[0], strErr = Object.values(str.errors)[0];
+  bar.querySelector('.msg').innerHTML = `เลือกแล้ว <strong>${pr.picked.length}</strong> รายการ` + (prErr ? ' — ' + escapeHTML(prErr) : strErr ? ` <span style="color:var(--muted)">· ขอโอนไม่ได้: ${escapeHTML(strErr)}</span>` : '');
+  const sb = bar.querySelector('[data-f=restockSTR]');
+  sb.textContent = state.rsSource ? `ขอโอนจาก ${state.rsSource} (STR)` : 'ขอโอน (STR) – เลือกสาขาก่อน';
+  sb.disabled = !!prErr || !!strErr || state.savingLines;
+  bar.querySelector('[data-f=restockPR]').disabled = !!prErr || state.savingLines;
+}
+
 // What needs doing at this branch right now – built from data already prefetched when the branch was opened.
 function renderTodo() {
   const box = $('todo'); if (!box) return;
   const items = branchItems1(state.items);
-  const out = items.filter(x => statusOf(x.qty) === 'out').length, low = items.filter(x => statusOf(x.qty) === 'low').length;
+  const out = items.filter(x => statusOf(x.qty, x.minQty) === 'out').length, low = items.filter(x => statusOf(x.qty, x.minQty) === 'low').length;
   const prPending = state.prList.filter(x => x.grQty === null).length;
   const rows = [
     { key: 'pr', ic: '&#128230;', label: 'ใบขอซื้อรอรับสินค้า', n: prPending, loading: state.prLoading },
@@ -1693,7 +1875,7 @@ function renderTodo() {
       { key: 'strIn', ic: '&#128666;', label: 'สินค้าโอนจากสาขาอื่น รอรับเข้า', n: state.strToReceive.length, loading: state.strLoading },
       { key: 'strOut', ic: '&#128228;', label: 'สาขาอื่นขอโอนจากสาขานี้ รอจ่าย', n: state.strToIssue.length, loading: state.strLoading }] : []),
     { key: 'out', ic: '&#9888;', label: 'สินค้าหมด', n: out, loading: state.itemsLoading, warn: true },
-    { key: 'low', ic: '&#9888;', label: `สินค้าใกล้หมด (≤ ${CONFIG.LOW_STOCK_THRESHOLD})`, n: low, loading: state.itemsLoading, warn: true }
+    { key: 'low', ic: '&#9888;', label: 'สินค้าใกล้หมด (ถึงขั้นต่ำ)', n: low, loading: state.itemsLoading, warn: true }
   ];
   const pending = rows.reduce((a, r) => a + (r.loading ? 0 : r.n), 0);
   $('todoSub').textContent = rows.some(r => r.loading) ? 'กำลังโหลด…' : pending ? `สาขา ${state.branch}` : `สาขา ${state.branch} · ไม่มีงานค้าง`;
@@ -1707,7 +1889,7 @@ function openTodo(key) {
   if (key === 'pr') { goto('receipt'); chooseReceiptMode('pr'); }
   else if (key === 'strIn') { goto('receipt'); chooseReceiptMode('str'); }
   else if (key === 'strOut') { goto('issue'); chooseIssueMode('str'); }
-  else if (key === 'out' || key === 'low') { goto('inventory'); state.status1 = key; render(); }
+  else if (key === 'out' || key === 'low') { state.rsFilter = key; goto('restock'); }
 }
 function renderUser() {
   const on = HAS_BACKEND && !!state.session;
@@ -1721,7 +1903,7 @@ function renderUser() {
 /* ---------- rendering: inventory (view only) ---------- */
 function renderCards(all) {
   const c = { all: all.length, ok: 0, low: 0, out: 0 };
-  all.forEach(x => c[statusOf(x.qty)]++);
+  all.forEach(x => c[statusOf(x.qty, x.minQty)]++);
   const defs = [['all', 'สินค้าทั้งหมด', ''], ['ok', 'มีสินค้า', 'ok'], ['low', 'สินค้าใกล้หมด', 'low'], ['out', 'สินค้าหมด', 'out']];
   $('cards1').innerHTML = defs.map(([k, label, cls]) =>
     `<button type="button" class="card ${cls}" data-status="${k}" aria-pressed="${state.status1 === k}"><div class="n">${c[k]}</div><div class="l">${label}</div></button>`).join('');
@@ -1733,22 +1915,60 @@ function renderInventory() {
   const all = loading ? [] : branchItems1(state.items);
   renderCards(all);
   const q = state.q1.trim().toLowerCase();
-  let list = loading ? [] : all.filter(x => (state.status1 === 'all' || statusOf(x.qty) === state.status1) &&
+  let list = loading ? [] : all.filter(x => (state.status1 === 'all' || statusOf(x.qty, x.minQty) === state.status1) &&
     (!q || x.itemNo.toLowerCase().includes(q) || x.itemName.toLowerCase().includes(q)));
   list = sortList(list, state.sort1);
   $('count1').textContent = loading ? '' : list.length + ' จาก ' + all.length + ' รายการ';
   const tbody = $('rows1'); tbody.innerHTML = '';
   list.forEach(item => {
     const tr = document.createElement('tr');
-    const st = statusOf(item.qty);
+    const st = statusOf(item.qty, item.minQty);
+    const draft = state.minDraft[item.row];
+    const minCell = isManager()
+      ? `<input class="qty-input min-input" type="number" min="0" step="any" data-row="${item.row}" value="${draft !== undefined ? escapeHTML(String(draft)) : item.minQty === null ? '' : item.minQty}" placeholder="${CONFIG.LOW_STOCK_THRESHOLD}" title="ว่าง = ใช้ค่าเริ่มต้น ${CONFIG.LOW_STOCK_THRESHOLD}" aria-label="ขั้นต่ำ ${escapeHTML(item.itemNo)}">`
+      : item.minQty === null ? `<span style="color:var(--muted)" title="ค่าเริ่มต้น">${CONFIG.LOW_STOCK_THRESHOLD}</span>` : item.minQty.toLocaleString();
+    if (draft !== undefined) tr.className = 'selected';
     tr.innerHTML = `<td>${escapeHTML(item.itemNo)}</td><td class="name">${escapeHTML(item.itemName)}</td>` +
-      `<td class="hide-sm unit">${escapeHTML(item.unit || '—')}</td><td class="num">${item.qty.toLocaleString()}</td>` +
+      `<td class="hide-sm unit">${escapeHTML(item.unit || '—')}</td><td class="num">${item.qty.toLocaleString()}</td><td class="num">${minCell}</td>` +
       `<td class="hide-sm"><span class="badge ${st}">${STATUS_LABEL[st]}</span></td>`;
     tbody.appendChild(tr);
   });
   const empty = $('empty1'); empty.hidden = list.length > 0;
   if (!list.length) empty.textContent = loading ? 'กำลังโหลดรายการสินค้า…' : all.length ? 'ไม่พบรายการที่ตรงกับการค้นหาหรือตัวกรอง' : 'ไม่พบรายการสินค้าสำหรับสาขานี้';
   applySort(document.querySelector('#view-inventory thead'), state.sort1);
+  $('invBanner').innerHTML = isManager()
+    ? 'จำนวนคงเหลือเปลี่ยนได้ผ่าน &ldquo;รับสินค้า&rdquo; / &ldquo;เบิกสินค้า&rdquo; เท่านั้น · <strong>ผู้จัดการ</strong>แก้ &ldquo;ขั้นต่ำ&rdquo; ได้ในตาราง (เว้นว่าง = ค่าเริ่มต้น ' + CONFIG.LOW_STOCK_THRESHOLD + ') แล้วกดบันทึกด้านล่าง'
+    : 'หน้านี้สำหรับ <strong>ตรวจสอบสต๊อกเท่านั้น</strong> · &ldquo;ขั้นต่ำ&rdquo; คือจุดที่ถือว่าใกล้หมด (ตั้งโดยผู้จัดการ; สีเทา = ค่าเริ่มต้น)';
+  renderMinBar();
+}
+// managers: save changed minimums in one go
+function renderMinBar() {
+  let bar = $('selectbarMin');
+  const n = Object.keys(state.minDraft).length;
+  if (state.view !== 'inventory' || !isManager() || !n) { if (bar) bar.remove(); return; }
+  if (!bar) {
+    bar = document.createElement('div'); bar.className = 'selectbar'; bar.id = 'selectbarMin';
+    bar.innerHTML = `<div class="inner"><div class="msg"></div><div><button class="btn" type="button" data-act="cancel">ยกเลิก</button> <button class="btn primary" type="button" data-act="save">บันทึกค่าขั้นต่ำ</button></div></div>`;
+    document.body.appendChild(bar);
+    bar.addEventListener('click', e => {
+      const b = e.target.closest('button[data-act]'); if (!b) return;
+      if (b.dataset.act === 'cancel') { state.minDraft = {}; render(); } else saveMinQty();
+    });
+  }
+  const bad = Object.values(state.minDraft).some(v => String(v).trim() !== '' && !(Number(v) >= 0));
+  bar.querySelector('.msg').innerHTML = `แก้ไขขั้นต่ำแล้ว <strong>${n}</strong> รายการ` + (bad ? ' — ค่าขั้นต่ำต้องเป็นตัวเลข 0 ขึ้นไป' : '');
+  bar.querySelector('[data-act=save]').disabled = bad || state.savingMin;
+}
+async function saveMinQty() {
+  const lines = Object.entries(state.minDraft).map(([row, v]) => ({ row: Number(row), minQty: String(v).trim() === '' ? '' : Number(v) }));
+  if (!lines.length || state.savingMin) return;
+  state.savingMin = true; renderMinBar();
+  try {
+    await callScriptPost({ action: 'setMin', branch: state.branch, lines });
+    state.minDraft = {}; toast('บันทึกค่าขั้นต่ำแล้ว ' + lines.length + ' รายการ');
+    await loadItems(true, { overlay: false }); state.lastUpdated1 = new Date().toLocaleString();
+  } catch (err) { toast('บันทึกไม่สำเร็จ: ' + (err.message || err)); }
+  finally { state.savingMin = false; render(); }
 }
 
 /* ---------- rendering: request purchase ---------- */
@@ -2238,6 +2458,7 @@ function render() {
   $('view-login').hidden = v !== 'login';
   $('view-transfer').hidden = v !== 'transfer';
   $('view-report').hidden = v !== 'report';
+  $('view-restock').hidden = v !== 'restock';
   if (v !== 'report') rpHideTip();
   $('view-replenish').hidden = v !== 'replenish';
   if (v === 'replenish') { $('branchName9').textContent = state.branch; $('tileTransfer').hidden = !HAS_BACKEND; }
@@ -2254,6 +2475,7 @@ function render() {
   else if (v === 'purchase') renderPurchase();
   else if (v === 'transfer') renderTransfer();
   else if (v === 'report') renderReport();
+  else if (v === 'restock') renderRestock();
   else if (v === 'issue') {
     $('branchName5').textContent = state.branch;
     const m = state.issueMode;
@@ -2286,6 +2508,7 @@ function render() {
   if (!(v === 'receipt' && state.receiptMode === 'direct')) { const bar4 = $('selectbar4'); if (bar4) bar4.remove(); }
   if (!(v === 'issue' && state.issueMode === 'general')) { const bar5 = $('selectbar5'); if (bar5) bar5.remove(); }
   Object.keys(FLOWS).forEach(f => { if (!FLOWS[f].active()) { const b = $(FLOWS[f].bar); if (b) b.remove(); } });
+  if (v !== 'inventory') { const mb = $('selectbarMin'); if (mb) mb.remove(); }
 }
 
 /* ---------- navigation ---------- */
@@ -2295,6 +2518,8 @@ function goto(view) {
   if (view === 'purchase') { state.q2 = ''; $('q2').value = ''; state.sort2 = { key: null, dir: 1 }; state.selected2 = {}; state.qtyDraft2 = {}; loadItems(false).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); }); }
   if (view === 'issue') { state.issueMode = HAS_BACKEND ? null : 'general'; if (state.issueMode === 'general') chooseIssueMode('general'); }
   if (view === 'receipt') { state.receiptMode = null; }
+  if (view === 'restock') openRestock();
+  if (view === 'inventory') state.minDraft = {};
   if (view === 'report') { if (!isManager()) { toast('รายงานนี้สำหรับผู้จัดการเท่านั้น'); state.view = rp.back || 'dashboard'; } else openReport(); }
   if (view === 'transfer') {
     state.transferTab = 'new'; state.q6 = ''; $('q6').value = ''; state.sel6 = {}; state.qty6 = {};
@@ -2335,8 +2560,16 @@ document.querySelectorAll('[data-goto]').forEach(el => el.addEventListener('clic
 ['toDash1', 'toDash3', 'toDash5', 'toDash9'].forEach(id => $(id).addEventListener('click', () => goto('dashboard')));
 ['toDash2', 'toDash6'].forEach(id => $(id).addEventListener('click', () => goto('replenish')));
 
-/* inventory (view only) */
+/* inventory (minimums editable by managers) */
 $('q1').addEventListener('input', e => { state.q1 = e.target.value; render(); });
+$('rows1').addEventListener('input', e => {
+  const mi = e.target.closest('.min-input'); if (!mi) return;
+  const item = state.items.find(x => String(x.row) === mi.dataset.row);
+  const orig = item && item.minQty !== null ? String(item.minQty) : '';
+  if (mi.value.trim() === orig) delete state.minDraft[mi.dataset.row]; else state.minDraft[mi.dataset.row] = mi.value;
+  mi.closest('tr').className = state.minDraft[mi.dataset.row] !== undefined ? 'selected' : '';
+  renderMinBar();
+});
 $('refresh1').addEventListener('click', () => loadItems(true).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); }));
 $('cards1').addEventListener('click', e => { const b = e.target.closest('.card'); if (!b) return; state.status1 = state.status1 === b.dataset.status ? 'all' : b.dataset.status; render(); });
 document.querySelector('#view-inventory thead').addEventListener('click', e => {
@@ -2380,7 +2613,7 @@ $('refresh3').addEventListener('click', () => {
 
 /* goods receipt: PR mode */
 $('toggleHistory').addEventListener('click', () => { state.prShowHistory = !state.prShowHistory; loadPR(false).then(() => { state.lastUpdated3 = new Date().toLocaleString(); render(); }); });
-Object.keys(FLOWS).forEach(bindFlow);
+Object.keys(FLOWS).filter(f => !FLOWS[f].noBind).forEach(bindFlow);
 $('lineCancel').addEventListener('click', () => { if (!state.savingLines) { closeModal('lineModal'); activeFlow = null; } });
 $('lineConfirm').addEventListener('click', submitFlow);
 $('doneClose').addEventListener('click', () => {
@@ -2441,6 +2674,10 @@ $('refresh6').addEventListener('click', () => {
   else loadSTR('history', { overlay: true }).then(() => { state.lastUpdated6h = new Date().toLocaleString(); toast('รีเฟรชแล้ว'); render(); });
 });
 
+$('toDash11').addEventListener('click', () => goto('dashboard'));
+$('refresh11').addEventListener('click', () => openRestock().then(() => toast('รีเฟรชแล้ว')));
+$('rsFilter').addEventListener('click', e => { const b = e.target.closest('button[data-f]'); if (b) { state.rsFilter = b.dataset.f; render(); } });
+$('rsSource').addEventListener('change', e => { state.rsSource = e.target.value; render(); });
 $('todoRows').addEventListener('click', e => { const b = e.target.closest('[data-todo]'); if (b) openTodo(b.dataset.todo); });
 
 /* usage report – opened from the branch picker (no branch needed) */
