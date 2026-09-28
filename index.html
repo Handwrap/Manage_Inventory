@@ -75,6 +75,48 @@
   .auth-error { color: var(--out-ink); font-size: 13.5px; margin: -4px 0 12px; }
   .userline { font-size: 13px; color: var(--muted); margin-top: 14px; text-align: center; }
   .userline strong { color: var(--text); }
+  /* usage report */
+  .rp-filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); margin-bottom: 16px; }
+  .rp-filters .fld { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); font-weight: 600; }
+  .rp-filters select, .rp-filters input[type=date] { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; font-weight: 400; }
+  .rp-filters .fld.item { flex: 1; min-width: 220px; }
+  .seg { display: inline-flex; background: var(--surface-2); border-radius: 8px; padding: 3px; gap: 2px; flex-wrap: wrap; }
+  .seg button { border: 0; background: none; padding: 6px 10px; border-radius: 6px; color: var(--muted); font-size: 13px; }
+  .seg button.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); font-weight: 600; }
+  .rp-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .rp-stat { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); background: var(--surface); }
+  .rp-stat .n { font-size: 26px; font-weight: 650; line-height: 1.15; }
+  .rp-stat .l { color: var(--muted); font-size: 12.5px; }
+  .rp-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); margin-bottom: 16px; }
+  .rp-card h3 { margin: 0; padding: 12px 14px 0; font-size: 15px; }
+  .rp-card .cap { color: var(--muted); font-size: 12.5px; padding: 2px 14px 10px; }
+  .rp-bar { display: flex; align-items: center; gap: 8px; min-width: 160px; }
+  .rp-bar .b { height: 10px; background: var(--accent); border-radius: 0 4px 4px 0; min-width: 0; }
+  .rp-bar .v { font-variant-numeric: tabular-nums; font-size: 13px; }
+  /* chart series colors: fixed order, validated colorblind-safe on white (adjacent CVD dE >= 9.1) */
+  :root { --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948; --s-other: #9aa1ab; }
+  .rp-legend { display: flex; flex-wrap: wrap; gap: 6px 8px; padding: 0 14px 4px; }
+  .rp-legend button { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--border); background: var(--surface); border-radius: 999px;
+    padding: 4px 11px 4px 9px; font-size: 13px; color: var(--text); }
+  .rp-legend button .sw { width: 16px; height: 3px; border-radius: 2px; }
+  .rp-legend button[aria-pressed="false"] { color: var(--muted); background: var(--surface-2); }
+  .rp-legend button[aria-pressed="false"] .sw { opacity: .3; }
+  .rp-legend .hint { font-size: 12px; color: var(--muted); align-self: center; }
+  td.peak { background: var(--ok-bg); font-weight: 650; }
+  .rp-tip .sw { display: inline-block; width: 10px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+  .trend { padding: 4px 8px 8px; }
+  .trend svg { display: block; overflow: visible; touch-action: pan-y; }
+  .trend svg:focus { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+  .trend .ax { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+  .trend .pk { font-size: 12px; font-weight: 650; fill: var(--text); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+  .trend .hit { cursor: crosshair; }
+  .trend .el { font-size: 12px; font-weight: 600; fill: var(--text); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; }
+  .rp-tip { position: fixed; z-index: 70; background: var(--text); color: #fff; font-size: 12.5px; padding: 8px 10px; border-radius: 8px; pointer-events: none;
+    box-shadow: 0 6px 20px rgba(0,0,0,.2); max-width: 240px; }
+  .rp-tip .t { font-weight: 650; margin-bottom: 2px; }
+  .rp-tip .r { display: flex; justify-content: space-between; gap: 14px; font-variant-numeric: tabular-nums; }
+  @media (max-width: 640px) { .rp-stats { grid-template-columns: repeat(2, 1fr); } .rp-stat .n { font-size: 22px; } }
   .src-select { padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; min-width: 200px; }
   select:focus, .search input:focus, .qty-input:focus, .reason-input:focus { outline: 2px solid var(--accent); outline-offset: 0; }
 
@@ -292,6 +334,12 @@
         <div class="d">เลือกสินค้าที่มีอยู่ในสาขานี้ และระบุจำนวนที่ต้องการเบิกออกจากสต๊อก</div>
         <div class="n">เปิด &rarr;</div>
       </button>
+      <button class="tile" type="button" data-goto="report" id="tileReport" hidden>
+        <div class="icon">&#128202;</div>
+        <div class="t">รายงานการใช้สินค้า</div>
+        <div class="d">ดูปริมาณการใช้ (เบิกสินค้า) ของแต่ละสาขา เปรียบเทียบข้ามสาขาและตามช่วงเวลา</div>
+        <div class="n">เปิด &rarr;</div>
+      </button>
       <button class="tile" type="button" data-goto="inventory">
         <div class="icon">&#128203;</div>
         <div class="t">จัดการสต๊อกสินค้า</div>
@@ -398,6 +446,61 @@
         </table>
       </div>
       <div class="empty" id="empty2" hidden></div>
+    </div>
+  </section>
+
+  <!-- STEP 3f: Usage report (goods issue only – branch transfers are excluded) -->
+  <section id="view-report" hidden>
+    <header class="top">
+      <div>
+        <h2 class="pagetitle">รายงานการใช้สินค้า</h2>
+        <div class="sub">นับเฉพาะการเบิกสินค้า (GI) ทุกสาขา · <strong>ไม่รวม</strong>การโอนสินค้าระหว่างสาขา (STR)</div>
+      </div>
+      <div class="head-actions">
+        <button class="btn" id="toDash10" type="button">&#8592; หน้าหลัก</button>
+        <button class="btn" id="refresh10" type="button">&#8635; รีเฟรช</button>
+      </div>
+    </header>
+    <div class="rp-filters">
+      <label class="fld item">สินค้า<select id="rpItem"><option value="">กำลังโหลด…</option></select></label>
+      <div class="fld">ช่วงเวลา<div class="seg" id="rpRange">
+        <button type="button" data-range="7">7 วัน</button><button type="button" data-range="30">30 วัน</button><button type="button" data-range="90">90 วัน</button><button type="button" data-range="month">เดือนนี้</button><button type="button" data-range="lastmonth">เดือนก่อน</button>
+      </div></div>
+      <label class="fld">ตั้งแต่<input type="date" id="rpFrom"></label>
+      <label class="fld">ถึง<input type="date" id="rpTo"></label>
+      <div class="fld">แสดงเป็นราย<div class="seg" id="rpGroup">
+        <button type="button" data-group="day">วัน</button><button type="button" data-group="week">สัปดาห์</button><button type="button" data-group="month">เดือน</button>
+      </div></div>
+    </div>
+    <div id="rpBody">
+      <section class="rp-stats" id="rpStats" aria-label="สรุป"></section>
+      <div class="rp-card">
+        <h3>การใช้แยกตามสาขา</h3>
+        <div class="cap"><span id="rpBranchCap"></span> · &ldquo;พอใช้อีกประมาณ&rdquo; = คงเหลือตอนนี้ &divide; เฉลี่ยต่อวัน (<span class="badge out">&#9888; &le;3 วัน</span> <span class="badge low">&le;7 วัน</span>)</div>
+        <div class="scroll"><table>
+          <thead><tr><th>สาขา</th><th>ใช้ไป</th><th class="num">จำนวนครั้ง</th><th class="num">เฉลี่ย/วัน</th><th class="num">คงเหลือตอนนี้</th><th class="num">พอใช้อีกประมาณ</th></tr></thead>
+          <tbody id="rpBranchRows"></tbody>
+        </table></div>
+      </div>
+      <div class="rp-card">
+        <h3>การใช้ตามช่วงเวลา แยกตามสาขา</h3>
+        <div class="cap" id="rpTrendCap"></div>
+        <div class="rp-legend" id="rpLegend"></div>
+        <div class="trend" id="rpTrend"></div>
+        <div class="scroll"><table>
+          <thead><tr id="rpMatrixHead"></tr></thead>
+          <tbody id="rpMatrixRows"></tbody>
+        </table></div>
+      </div>
+      <div class="rp-card">
+        <h3>รายการเบิกล่าสุด</h3>
+        <div class="cap" id="rpDetailCap"></div>
+        <div class="scroll"><table>
+          <thead><tr><th>วันที่</th><th>สาขา</th><th>เลขที่</th><th class="num">จำนวน</th><th>เหตุผล</th><th class="hide-sm">ผู้เบิก</th></tr></thead>
+          <tbody id="rpDetailRows"></tbody>
+        </table></div>
+        <div class="empty" id="rpDetailEmpty" hidden>ไม่มีการเบิกสินค้านี้ในช่วงเวลาที่เลือก</div>
+      </div>
     </div>
   </section>
 
@@ -848,8 +951,9 @@
 const CONFIG = {
   // Supabase > Project Settings > API (or "Connect"): the Project URL and the PUBLIC key
   // ("publishable" sb_publishable_... or legacy "anon"). NEVER put the secret / service_role key here.
-  SUPABASE_URL: 'https://rxiszjmvcpukvtkstday.supabase.co',       // e.g. 'https://abcdefgh.supabase.co'
+  SUPABASE_URL: 'https://rxiszjmvcpukvtkstday.supabase.co',          // e.g. 'https://abcdefgh.supabase.co'
   SUPABASE_KEY: 'sb_publishable_xqTfP6U6CYtgsDOjKNrCQw_1OcQGqFT',
+  
   // Staff sign in with their own account. New accounts need the invite code set in app_settings (5-upgrade-login-str.sql).
 
   // Optional read-only mode (no database): paste the Google Sheet link
@@ -857,6 +961,7 @@ const CONFIG = {
   SHEET_URL: '',
   BRANCH_TAB_NAME: '',
 
+  REPORT_DEFAULT_ITEM: 'tortilla', // usage report opens on the first item whose name/code contains this (until someone picks another)
   LOW_STOCK_THRESHOLD: 10,   // quantity at or below this = "low stock"
   AUTO_REFRESH_SECONDS: 0    // 0 = off
 };
@@ -1043,7 +1148,9 @@ const RPC = {
   goodsIssue:    b => ['goods_issue',    { p_branch: b.branch, p_reason: b.reason, p_items: b.items }],
   submitSTR:     b => ['submit_str',     { p_branch: b.branch, p_from_branch: b.fromBranch, p_items: b.items }],
   issueSTR:      b => ['issue_str',      { p_branch: b.branch, p_lines: b.lines }],
-  receiveSTR:    b => ['receive_str',    { p_branch: b.branch, p_lines: b.lines }]
+  receiveSTR:    b => ['receive_str',    { p_branch: b.branch, p_lines: b.lines }],
+  catalog:       p => ['get_item_catalog', {}],
+  usage:         p => ['get_usage_report', { p_item_no: p.itemNo, p_from: p.from, p_to: p.to, p_group: p.group }]
 };
 const NO_SESSION = new Set(['sign_up', 'sign_in']);
 async function callSupabase(params, opts) {
@@ -1550,6 +1657,7 @@ function renderBranchView() {
 /* ---------- rendering: dashboard ---------- */
 function renderDashboard() {
   $('branchName0').textContent = state.branch;
+  $('tileReport').hidden = !HAS_BACKEND;
 }
 function renderUser() {
   const on = HAS_BACKEND && !!state.session;
@@ -1853,9 +1961,11 @@ function renderSelectBar5() {
     document.body.appendChild(bar);
     bar.querySelector('#issueReview').addEventListener('click', openIssueModal);
   }
-  const overCount = items.length - valid.length;
+  const over = items.find(x => Number(state.qtyDraft5[x.row]) > x.qty);
+  const bad = items.find(x => !(Number(state.qtyDraft5[x.row]) > 0));
   bar.querySelector('.msg').innerHTML = `เลือกแล้ว <strong>${items.length}</strong> รายการ` +
-    (overCount ? ' — จำนวนที่เบิกต้องมากกว่า 0 และไม่เกินจำนวนคงเหลือ' : '');
+    (over ? ` — <span style="color:var(--out-ink)">${escapeHTML(over.itemNo)} เบิกเกินจำนวนคงเหลือ (คงเหลือ ${over.qty.toLocaleString()})</span>`
+      : bad ? ' — จำนวนที่เบิกต้องมากกว่า 0' : '');
   bar.querySelector('#issueReview').disabled = valid.length === 0 || valid.length !== items.length;
 }
 function openIssueModal() {
@@ -1865,12 +1975,219 @@ function openIssueModal() {
   $('issueModal').hidden = false;
 }
 
+/* ---------- usage report ---------- */
+const RP_ITEM_KEY = 'stockcheck.reportItem';
+const rp = { catalog: [], itemNo: '', from: '', to: '', group: 'day', range: '30', data: null, loading: false, reqId: 0, hidden: new Set() };
+const isoDate = d => { const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000); return z.toISOString().slice(0, 10); };
+function rpSetRange(range) {
+  const today = new Date(); let from = new Date(today), to = new Date(today);
+  if (range === 'month') from = new Date(today.getFullYear(), today.getMonth(), 1);
+  else if (range === 'lastmonth') { from = new Date(today.getFullYear(), today.getMonth() - 1, 1); to = new Date(today.getFullYear(), today.getMonth(), 0); }
+  else from.setDate(today.getDate() - Number(range) + 1);
+  rp.range = range; rp.from = isoDate(from); rp.to = isoDate(to);
+  rp.group = range === '90' ? 'week' : 'day';
+}
+function rpDefaultItem() {
+  let saved = ''; try { saved = localStorage.getItem(RP_ITEM_KEY) || ''; } catch (e) {}
+  if (saved && rp.catalog.some(x => x.itemNo === saved)) return saved;
+  const want = String(CONFIG.REPORT_DEFAULT_ITEM || '').toLowerCase();
+  const hit = want && rp.catalog.find(x => (x.itemName + ' ' + x.itemNo).toLowerCase().includes(want));
+  return hit ? hit.itemNo : (rp.catalog[0] ? rp.catalog[0].itemNo : '');
+}
+async function openReport() {
+  if (!rp.from) rpSetRange('30');
+  if (!rp.catalog.length) {
+    try { rp.catalog = (await callScriptGet({ action: 'catalog' }, { overlay: true })).items; }
+    catch (err) { banner('<strong>ไม่สามารถโหลดรายการสินค้าได้</strong> ' + escapeHTML(err.message || err), true); return; }
+    rp.itemNo = rpDefaultItem();
+  }
+  loadReport();
+}
+async function loadReport() {
+  if (!rp.itemNo) { rp.data = null; render(); return; }
+  const id = ++rp.reqId; rp.loading = true; render();
+  try {
+    const data = await callScriptGet({ action: 'usage', itemNo: rp.itemNo, from: rp.from, to: rp.to, group: rp.group }, { overlay: !rp.data });
+    if (id === rp.reqId) { rp.data = data; banner(''); }
+  } catch (err) { if (id === rp.reqId) banner('<strong>โหลดรายงานไม่สำเร็จ</strong> ' + escapeHTML(err.message || err), true); }
+  finally { if (id === rp.reqId) { rp.loading = false; render(); } }
+}
+const fmtN = v => Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
+function rpPeriodLabel(iso, group, long) {
+  const d = new Date(iso + 'T00:00:00');
+  if (group === 'month') return d.toLocaleDateString('th-TH', { month: long ? 'long' : 'short', year: 'numeric' });
+  const s = d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short' });
+  return group === 'week' ? (long ? 'สัปดาห์เริ่ม ' : '') + s : s;
+}
+function renderReport() {
+  // filters
+  const sel = $('rpItem');
+  if (rp.catalog.length && sel.options.length !== rp.catalog.length) {
+    sel.innerHTML = rp.catalog.map(x => `<option value="${escapeHTML(x.itemNo)}">${escapeHTML(x.itemName || x.itemNo)} (${escapeHTML(x.itemNo)})</option>`).join('');
+  }
+  if (rp.itemNo) sel.value = rp.itemNo;
+  $('rpFrom').value = rp.from; $('rpTo').value = rp.to;
+  document.querySelectorAll('#rpRange button').forEach(b => b.classList.toggle('active', b.dataset.range === rp.range));
+  document.querySelectorAll('#rpGroup button').forEach(b => b.classList.toggle('active', b.dataset.group === rp.group));
+  const d = rp.data;
+  $('rpBody').style.opacity = rp.loading && d ? '.55' : '';        // hold previous render while refetching
+  if (!d) { $('rpStats').innerHTML = ''; ['rpBranchRows', 'rpMatrixRows', 'rpDetailRows', 'rpTrend', 'rpMatrixHead'].forEach(id => { $(id).innerHTML = ''; }); return; }
+  const unit = d.unit || '';
+  const total = d.branches.reduce((a, b) => a + Number(b.total), 0);
+  const perDay = total / d.days;
+  const using = d.branches.filter(b => Number(b.total) > 0).length;
+  const onHand = d.branches.reduce((a, b) => a + (b.onHand === null ? 0 : Number(b.onHand)), 0);
+  const stat = (n, l) => `<div class="rp-stat"><div class="n">${n}</div><div class="l">${l}</div></div>`;
+  $('rpStats').innerHTML =
+    stat(fmtN(total), `ใช้รวมทุกสาขา (${escapeHTML(unit)})`) + stat(fmtN(Math.round(perDay * 10) / 10), `เฉลี่ยต่อวัน (${d.days} วัน)`) +
+    rpPeakStat(d, stat) +
+    stat(`${using} / ${d.branches.length}`, 'สาขาที่มีการใช้') + stat(fmtN(onHand), `คงเหลือรวมตอนนี้ (${escapeHTML(unit)})`);
+  // per-branch table with inline bars (one series -> one color)
+  const max = Math.max(1, ...d.branches.map(b => Number(b.total)));
+  const rows = d.branches.slice().sort((a, b) => b.total - a.total);
+  $('rpBranchCap').textContent = `${d.itemName || d.itemNo} · ${rpPeriodLabel(d.from, 'day')} – ${rpPeriodLabel(d.to, 'day')} · เรียงจากใช้มากไปน้อย`;
+  $('rpBranchRows').innerHTML = rows.map(b => {
+    const t = Number(b.total), avg = t / d.days;
+    const days = b.onHand !== null && avg > 0 ? Math.floor(Number(b.onHand) / avg) : null;
+    const cover = days === null ? '—' : days <= 3 ? `<span class="badge out">&#9888; ${fmtN(days)} วัน</span>`
+      : days <= 7 ? `<span class="badge low">${fmtN(days)} วัน</span>` : fmtN(days) + ' วัน';
+    const pct = (t / max) * 100;
+    return `<tr><td>${escapeHTML(b.branch)}</td>` +
+      `<td><div class="rp-bar"><div class="b" style="width:${pct * 0.7}%"></div><span class="v">${fmtN(t)}</span></div></td>` +
+      `<td class="num">${fmtN(b.count)}</td><td class="num">${fmtN(Math.round(avg * 100) / 100)}</td>` +
+      `<td class="num">${b.onHand === null ? '<span style="color:var(--muted)">ไม่มีสินค้านี้</span>' : fmtN(b.onHand)}</td><td class="num">${cover}</td></tr>`;
+  }).join('');
+  // trend: one line per branch (color follows the branch); each branch's highest point is marked + labelled
+  const P = d.periods;
+  rp.series = rpSeries(d);
+  $('rpTrendCap').textContent = `ราย${GROUP_TH[d.group]} · จุดใหญ่ = ช่วงที่ใช้สูงสุดของแต่ละสาขา · ชี้ แตะ หรือกดปุ่มลูกศรบนกราฟเพื่อดูตัวเลข` +
+    (rp.series.some(sr => sr.max > 0 && sr.vals.filter(v => v === sr.max).length > 1) ? ' · ถ้าสูงสุดเท่ากันหลายช่วง จะทำเครื่องหมายช่วงแรก' : '') +
+    (d.group !== 'day' ? ` · จุดแรก/สุดท้ายอาจนับไม่เต็ม${GROUP_TH[d.group]} (ตามช่วงวันที่ที่เลือก)` : '');
+  $('rpLegend').innerHTML = rp.series.map(sr => `<button type="button" data-key="${escapeHTML(sr.key)}" aria-pressed="${!rp.hidden.has(sr.key)}" title="กดเพื่อซ่อน/แสดงเส้นนี้">` +
+    `<span class="sw" style="background:${sr.color}"></span>${escapeHTML(sr.name)}</button>`).join('') +
+    (rp.series.length > 1 ? '<span class="hint">กดชื่อสาขาเพื่อซ่อน/แสดง</span>' : '');
+  rpDrawLine();
+  // table view of the same data: period x branch
+  const names = d.branches.map(b => b.branch);
+  $('rpMatrixHead').innerHTML = `<th>ช่วงเวลา</th>` + names.map(n => `<th class="num">${escapeHTML(n)}</th>`).join('') + `<th class="num">รวม</th>`;
+  $('rpMatrixRows').innerHTML = P.slice().reverse().filter(p => Number(p.total) > 0 || d.group !== 'day').map(p =>
+    `<tr><td>${escapeHTML(rpPeriodLabel(p.period, d.group, true))}</td>` +
+    names.map(n => { const v = p.byBranch[n]; const sr = rp.series.find(x => x.members.includes(n));
+      const pk = v && sr && sr.members.length === 1 && P[sr.peak] === p;
+      return `<td class="num${pk ? ' peak' : ''}"${pk ? ' title="สูงสุดของสาขานี้"' : ''}>${v ? fmtN(v) + (pk ? ' &#9650;' : '') : '<span style="color:var(--muted)">–</span>'}</td>`; }).join('') +
+    `<td class="num"><strong>${fmtN(p.total)}</strong></td></tr>`).join('') ||
+    `<tr><td colspan="${names.length + 2}" class="empty">ไม่มีการใช้ในช่วงเวลานี้</td></tr>`;
+  // details
+  $('rpDetailCap').textContent = d.details.length >= 300 ? 'แสดง 300 รายการล่าสุด' : d.details.length + ' รายการ';
+  $('rpDetailRows').innerHTML = d.details.map(x => `<tr><td>${escapeHTML(x.date)}</td><td>${escapeHTML(x.branch)}</td><td>${escapeHTML(x.docNo)}</td>` +
+    `<td class="num">${fmtN(x.qty)}</td><td class="name">${escapeHTML(x.reason || '')}</td><td class="hide-sm">${escapeHTML(x.by || '')}</td></tr>`).join('');
+  $('rpDetailEmpty').hidden = d.details.length > 0;
+}
+// smallest "round" axis top above v (with ~10% headroom so the peak label never touches the frame)
+function niceMax(v) { v *= 1.1; const p = Math.pow(10, Math.floor(Math.log10(v))); const n = v / p; return ([1, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10].find(s => n <= s)) * p; }
+const GROUP_TH = { day: 'วัน', week: 'สัปดาห์', month: 'เดือน' };
+function rpPeakStat(d, stat) {
+  const P = d.periods, vals = P.map(p => Number(p.total)), pmax = Math.max(0, ...vals);
+  if (!(pmax > 0)) return stat('—', `สูงสุดต่อ${GROUP_TH[d.group]}`);
+  return stat(fmtN(pmax), `สูงสุดรวมทุกสาขาต่อ${GROUP_TH[d.group]} · ${escapeHTML(rpPeriodLabel(P[vals.indexOf(pmax)].period, d.group, true))}`);
+}
+// One series per branch, in the fixed branch order (so a branch keeps its color whatever the data or filters).
+// Max 8 colored lines; a 9th+ branch is folded into one gray "สาขาอื่น" line rather than inventing more colors.
+function rpSeries(d) {
+  const names = d.branches.map(b => b.branch);
+  const colored = names.length > 8 ? names.slice(0, 7) : names;
+  const out = colored.map((n, i) => ({ key: n, name: n, members: [n], color: `var(--s${i + 1})` }));
+  if (names.length > 8) out.push({ key: '__other', name: `สาขาอื่น (${names.length - 7})`, members: names.slice(7), color: 'var(--s-other)' });
+  out.forEach(sr => {
+    sr.vals = d.periods.map(p => sr.members.reduce((a, m) => a + Number(p.byBranch[m] || 0), 0));
+    sr.max = Math.max(0, ...sr.vals); sr.peak = sr.max > 0 ? sr.vals.indexOf(sr.max) : -1;
+  });
+  return out;
+}
+// SVG line chart sized to its container (redrawn on resize so text never stretches)
+function rpDrawLine() {
+  const d = rp.data, box = $('rpTrend'); if (!d) { box.innerHTML = ''; return; }
+  const P = d.periods, n = P.length, S = rp.series.filter(sr => !rp.hidden.has(sr.key));
+  const label = S.length <= 4;                                   // direct labels only while they stay readable
+  const W = Math.max(280, box.clientWidth || 600), H = 250, L = 46, R = label ? 78 : 18, T = 30, B = 26, iw = W - L - R, ih = H - T - B;
+  const vmax = Math.max(0, ...S.map(sr => sr.max)), top = vmax > 0 ? niceMax(vmax) : 1;
+  const x = i => L + (n <= 1 ? iw / 2 : (i * iw) / (n - 1)), y = v => T + ih - (v / top) * ih;
+  rp.geo = { W, L, iw, n, x, y };
+  const unit = d.unit || '';
+  const grid = [0, 0.5, 1].map(f => `<line x1="${L}" x2="${L + iw}" y1="${y(top * f)}" y2="${y(top * f)}" stroke="${f ? 'var(--surface-2)' : 'var(--border)'}" stroke-width="1"/>` +
+    `<text x="${L - 8}" y="${y(top * f) + 4}" text-anchor="end" class="ax">${fmtN(top * f)}</text>`).join('');
+  const xi = n > 2 ? [0, Math.floor((n - 1) / 2), n - 1] : n === 2 ? [0, 1] : [0];
+  const xl = xi.map((i, k) => `<text x="${x(i)}" y="${H - 6}" text-anchor="${n === 1 ? 'middle' : k === 0 ? 'start' : k === xi.length - 1 ? 'end' : 'middle'}" class="ax">${escapeHTML(rpPeriodLabel(P[i].period, d.group))}</text>`).join('');
+  const lines = S.map(sr => {
+    const pts = sr.vals.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    return (n > 1 ? `<polyline points="${pts}" fill="none" stroke="${sr.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` : '') +
+      (n <= 16 ? sr.vals.map((v, i) => `<circle cx="${x(i)}" cy="${y(v)}" r="3" fill="${sr.color}" stroke="var(--surface)" stroke-width="1.5"/>`).join('') : '');
+  }).join('');
+  // labels ("สูงสุด N" above each branch's peak, branch name at each line's end), nudged apart so they never overlap
+  const placed = [];
+  const place = (lx, ly, w, dir) => { let yy = ly; for (let k = 0; k < 12; k++) { if (!placed.some(b => Math.abs(b.x - lx) < (b.w + w) / 2 + 4 && Math.abs(b.y - yy) < 14)) break; yy += dir * 14; } placed.push({ x: lx, y: yy, w }); return yy; };
+  const peaks = S.filter(sr => sr.peak >= 0).map(sr => {
+    const px = x(sr.peak), py = y(sr.max);
+    let txt = '';
+    if (label) {
+      const t = `สูงสุด ${fmtN(sr.max)}`, w = t.length * 6.2;
+      const cx = Math.min(L + iw - w / 2, Math.max(L + w / 2, px));
+      txt = `<text x="${cx}" y="${place(cx, Math.max(12, py - 12), w, -1)}" text-anchor="middle" class="pk">${escapeHTML(t)}</text>`;
+    }
+    return `<circle cx="${px}" cy="${py}" r="6" fill="${sr.color}" stroke="var(--surface)" stroke-width="2"/>` + txt;
+  }).join('');
+  const ends = label && n > 0 ? S.slice().sort((a, b) => b.vals[n - 1] - a.vals[n - 1]).map(sr => {
+    const w = sr.name.length * 7, ly = place(L + iw + 8 + w / 2, y(sr.vals[n - 1]) + 4, w, 1);
+    return `<text x="${L + iw + 8}" y="${ly}" class="el">${escapeHTML(sr.name)}</text>`;
+  }).join('') : '';
+  const aria = `กราฟเส้นการใช้ ${d.itemName || d.itemNo} ราย${GROUP_TH[d.group]} แยก ${S.length} สาขา: ` +
+    S.map(sr => sr.peak >= 0 ? `${sr.name} สูงสุด ${fmtN(sr.max)} ${unit} เมื่อ ${rpPeriodLabel(P[sr.peak].period, d.group, true)}` : `${sr.name} ไม่มีการใช้`).join(', ');
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" tabindex="0" role="img" aria-label="${escapeHTML(aria)}">` +
+    grid + xl + lines + peaks + ends +
+    `<line id="rpCross" y1="${T}" y2="${T + ih}" stroke="var(--muted)" stroke-width="1" visibility="hidden"/><g id="rpHoverDots"></g>` +
+    `<rect x="${L - 10}" y="${T - 10}" width="${iw + 20}" height="${ih + 20}" fill="transparent" class="hit"/></svg>`;
+  rp.hover = -1;
+}
+let rpTipEl = null;
+function rpHover(i) {
+  const d = rp.data, g = rp.geo, svg = document.querySelector('#rpTrend svg'); if (!d || !g || !svg || i < 0 || i >= g.n) return rpHideTip();
+  rp.hover = i;
+  const p = d.periods[i], cx = g.x(i), S = rp.series.filter(sr => !rp.hidden.has(sr.key));
+  const cross = svg.querySelector('#rpCross');
+  cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.setAttribute('visibility', 'visible');
+  svg.querySelector('#rpHoverDots').innerHTML = S.map(sr => `<circle cx="${cx}" cy="${g.y(sr.vals[i])}" r="5" fill="var(--surface)" stroke="${sr.color}" stroke-width="2"/>`).join('');
+  if (!rpTipEl) { rpTipEl = document.createElement('div'); rpTipEl.className = 'rp-tip'; document.body.appendChild(rpTipEl); }
+  const rows = S.slice().sort((a, b) => b.vals[i] - a.vals[i]);
+  rpTipEl.innerHTML = `<div class="t">${escapeHTML(rpPeriodLabel(p.period, d.group, true))}</div>` +
+    rows.map(sr => `<div class="r"><span><span class="sw" style="background:${sr.color}"></span>${escapeHTML(sr.name)}${sr.peak === i ? ' ▲สูงสุด' : ''}</span><span>${fmtN(sr.vals[i])}</span></div>`).join('') +
+    `<div class="r" style="border-top:1px solid rgba(255,255,255,.25);margin-top:3px;padding-top:3px"><span>รวมทุกสาขา</span><strong>${fmtN(p.total)} ${escapeHTML(d.unit || '')}</strong></div>`;
+  rpTipEl.hidden = false;
+  const r = svg.getBoundingClientRect(), k = r.width / g.W, w = rpTipEl.offsetWidth, h = rpTipEl.offsetHeight;
+  const px = r.left + cx * k, midY = r.top + r.height / 2;
+  const left = px + 14 + w > window.innerWidth - 8 ? px - 14 - w : px + 14;      // beside the crosshair, flipping near the edge
+  rpTipEl.style.left = Math.max(8, left) + 'px';
+  rpTipEl.style.top = Math.min(window.innerHeight - h - 8, Math.max(8, midY - h / 2)) + 'px';
+}
+function rpHideTip() {
+  if (rpTipEl) rpTipEl.hidden = true;
+  const svg = document.querySelector('#rpTrend svg');
+  if (svg) { svg.querySelector('#rpCross').setAttribute('visibility', 'hidden'); svg.querySelector('#rpHoverDots').innerHTML = ''; }
+  rp.hover = -1;
+}
+function rpIndexAt(clientX) {
+  const g = rp.geo, svg = document.querySelector('#rpTrend svg'); if (!g || !svg) return -1;
+  const r = svg.getBoundingClientRect(), sx = (clientX - r.left) / (r.width / g.W);
+  return g.n <= 1 ? 0 : Math.max(0, Math.min(g.n - 1, Math.round(((sx - g.L) / g.iw) * (g.n - 1))));
+}
+
 /* ---------- master render ---------- */
 function render() {
   const v = state.view;
   renderUser();
   $('view-login').hidden = v !== 'login';
   $('view-transfer').hidden = v !== 'transfer';
+  $('view-report').hidden = v !== 'report';
+  if (v !== 'report') rpHideTip();
   $('view-replenish').hidden = v !== 'replenish';
   if (v === 'replenish') { $('branchName9').textContent = state.branch; $('tileTransfer').hidden = !HAS_BACKEND; }
   $('view-branch').hidden = v !== 'branch';
@@ -1885,6 +2202,7 @@ function render() {
   else if (v === 'inventory') renderInventory();
   else if (v === 'purchase') renderPurchase();
   else if (v === 'transfer') renderTransfer();
+  else if (v === 'report') renderReport();
   else if (v === 'issue') {
     $('branchName5').textContent = state.branch;
     const m = state.issueMode;
@@ -1926,6 +2244,7 @@ function goto(view) {
   if (view === 'purchase') { state.q2 = ''; $('q2').value = ''; state.sort2 = { key: null, dir: 1 }; state.selected2 = {}; state.qtyDraft2 = {}; loadItems(false).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); }); }
   if (view === 'issue') { state.issueMode = HAS_BACKEND ? null : 'general'; if (state.issueMode === 'general') chooseIssueMode('general'); }
   if (view === 'receipt') { state.receiptMode = null; }
+  if (view === 'report') openReport();
   if (view === 'transfer') {
     state.transferTab = 'new'; state.q6 = ''; $('q6').value = ''; state.sel6 = {}; state.qty6 = {};
     if (same(state.strSource, state.branch)) state.strSource = '';
@@ -1962,7 +2281,7 @@ $('continue').addEventListener('click', async () => {
 $('retry').addEventListener('click', () => loadBranches(true));
 $('changeBranch0').addEventListener('click', () => { state.view = 'branch'; render(); });
 document.querySelectorAll('[data-goto]').forEach(el => el.addEventListener('click', () => goto(el.dataset.goto)));
-['toDash1', 'toDash3', 'toDash5', 'toDash9'].forEach(id => $(id).addEventListener('click', () => goto('dashboard')));
+['toDash1', 'toDash3', 'toDash5', 'toDash9', 'toDash10'].forEach(id => $(id).addEventListener('click', () => goto('dashboard')));
 ['toDash2', 'toDash6'].forEach(id => $(id).addEventListener('click', () => goto('replenish')));
 
 /* inventory (view only) */
@@ -2070,6 +2389,36 @@ $('refresh6').addEventListener('click', () => {
   if (state.transferTab === 'new') Promise.all([loadSrcItems({ overlay: true }), loadItems(true, { overlay: false })]).then(() => { state.lastUpdated6 = new Date().toLocaleString(); toast('รีเฟรชแล้ว'); render(); });
   else loadSTR('history', { overlay: true }).then(() => { state.lastUpdated6h = new Date().toLocaleString(); toast('รีเฟรชแล้ว'); render(); });
 });
+
+/* usage report */
+$('rpItem').addEventListener('change', e => { rp.itemNo = e.target.value; try { localStorage.setItem(RP_ITEM_KEY, rp.itemNo); } catch (x) {} loadReport(); });
+$('rpRange').addEventListener('click', e => { const b = e.target.closest('button[data-range]'); if (!b) return; rpSetRange(b.dataset.range); loadReport(); });
+$('rpGroup').addEventListener('click', e => { const b = e.target.closest('button[data-group]'); if (!b) return; rp.group = b.dataset.group; loadReport(); });
+['rpFrom', 'rpTo'].forEach(id => $(id).addEventListener('change', () => {
+  const f = $('rpFrom').value, t = $('rpTo').value; if (!f || !t) return;
+  if (t < f) { toast('วันที่สิ้นสุดต้องไม่ก่อนวันที่เริ่มต้น'); render(); return; }
+  rp.from = f; rp.to = t; rp.range = ''; loadReport();
+}));
+$('refresh10').addEventListener('click', () => { rp.catalog = []; openReport(); });
+$('rpTrend').addEventListener('pointermove', e => { if (e.target.closest('svg')) rpHover(rpIndexAt(e.clientX)); });
+$('rpTrend').addEventListener('pointerdown', e => { if (e.target.closest('svg')) rpHover(rpIndexAt(e.clientX)); });
+$('rpTrend').addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') rpHideTip(); });
+$('rpTrend').addEventListener('focusin', () => rpHover(0));
+$('rpLegend').addEventListener('click', e => {
+  const b = e.target.closest('button[data-key]'); if (!b) return;
+  const k = b.dataset.key; rp.hidden.has(k) ? rp.hidden.delete(k) : rp.hidden.add(k);
+  if (rp.series && rp.hidden.size >= rp.series.length) rp.hidden.delete(k);   // keep at least one line visible
+  rpHideTip(); render();
+});
+$('rpTrend').addEventListener('focusout', rpHideTip);
+$('rpTrend').addEventListener('keydown', e => {
+  if (!rp.geo) return;
+  const step = { ArrowLeft: -1, ArrowRight: 1 }[e.key]; if (!step) return;
+  e.preventDefault(); rpHover(Math.max(0, Math.min(rp.geo.n - 1, (rp.hover < 0 ? 0 : rp.hover) + step)));
+});
+let rpResizeT = null;
+window.addEventListener('resize', () => { clearTimeout(rpResizeT); rpResizeT = setTimeout(() => { if (state.view === 'report' && rp.data) { rpHideTip(); rpDrawLine(); } }, 150); });
+window.addEventListener('scroll', rpHideTip, { passive: true });
 
 /* login */
 $('tabSignIn').addEventListener('click', () => showAuthTab('signin'));
