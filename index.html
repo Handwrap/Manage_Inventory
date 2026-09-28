@@ -73,6 +73,20 @@
   .auth-tabs button { flex: 1; border: 0; background: none; padding: 8px; border-radius: 7px; color: var(--muted); font-weight: 600; }
   .auth-tabs button.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
   .auth-error { color: var(--out-ink); font-size: 13.5px; margin: -4px 0 12px; }
+  /* dashboard to-do panel */
+  .todo { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); margin-bottom: 16px; overflow: hidden; }
+  .todo-h { font-weight: 650; font-size: 15px; padding: 12px 16px 8px; }
+  .todo-sub { font-weight: 400; font-size: 12.5px; color: var(--muted); margin-left: 6px; }
+  .todo-row { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; border-top: 1px solid var(--border); background: none;
+    padding: 11px 16px; text-align: left; color: var(--text); }
+  .todo-row:hover { background: var(--surface-2); }
+  .todo-row .ic { width: 22px; text-align: center; }
+  .todo-row .lb { flex: 1; }
+  .todo-row .ct { font-weight: 650; font-variant-numeric: tabular-nums; }
+  .todo-row .go { color: var(--accent); }
+  .todo-row.done { color: var(--muted); }
+  .todo-row.done .ct { font-weight: 400; }
+  .todo-row.warn .ct { color: var(--out-ink); }
   .report-entry { border-top: 1px solid var(--border); margin-top: 18px; padding-top: 16px; }
   .userline { font-size: 13px; color: var(--muted); margin-top: 14px; text-align: center; }
   .userline strong { color: var(--text); }
@@ -319,6 +333,10 @@
         <button class="btn js-logout" type="button" hidden>ออกจากระบบ</button>
       </div>
     </header>
+    <section class="todo" id="todo" aria-label="งานที่รอดำเนินการ">
+      <div class="todo-h">งานที่รอดำเนินการ <span class="todo-sub" id="todoSub"></span></div>
+      <div id="todoRows"></div>
+    </section>
     <div class="tiles">
       <button class="tile" type="button" data-goto="replenish">
         <div class="icon">&#128722;</div>
@@ -336,12 +354,6 @@
         <div class="icon">&#128228;</div>
         <div class="t">เบิกสินค้า</div>
         <div class="d">เลือกสินค้าที่มีอยู่ในสาขานี้ และระบุจำนวนที่ต้องการเบิกออกจากสต๊อก</div>
-        <div class="n">เปิด &rarr;</div>
-      </button>
-      <button class="tile" type="button" data-goto="report" id="tileReport" hidden>
-        <div class="icon">&#128202;</div>
-        <div class="t">รายงานการใช้สินค้า</div>
-        <div class="d">ดูปริมาณการใช้ (เบิกสินค้า) ของแต่ละสาขา เปรียบเทียบข้ามสาขาและตามช่วงเวลา</div>
         <div class="n">เปิด &rarr;</div>
       </button>
       <button class="tile" type="button" data-goto="inventory">
@@ -955,7 +967,7 @@
 const CONFIG = {
   // Supabase > Project Settings > API (or "Connect"): the Project URL and the PUBLIC key
   // ("publishable" sb_publishable_... or legacy "anon"). NEVER put the secret / service_role key here.
-  SUPABASE_URL: 'https://rxiszjmvcpukvtkstday.supabase.co',          // e.g. 'https://abcdefgh.supabase.co'
+  SUPABASE_URL: 'https://rxiszjmvcpukvtkstday.supabase.co',               // e.g. 'https://abcdefgh.supabase.co'
   SUPABASE_KEY: 'sb_publishable_xqTfP6U6CYtgsDOjKNrCQw_1OcQGqFT',
   // Staff sign in with their own account. New accounts need the invite code set in app_settings (5-upgrade-login-str.sql).
 
@@ -1667,7 +1679,35 @@ function renderBranchView() {
 /* ---------- rendering: dashboard ---------- */
 function renderDashboard() {
   $('branchName0').textContent = state.branch;
-  $('tileReport').hidden = !isManager();
+  renderTodo();
+}
+// What needs doing at this branch right now – built from data already prefetched when the branch was opened.
+function renderTodo() {
+  const box = $('todo'); if (!box) return;
+  const items = branchItems1(state.items);
+  const out = items.filter(x => statusOf(x.qty) === 'out').length, low = items.filter(x => statusOf(x.qty) === 'low').length;
+  const prPending = state.prList.filter(x => x.grQty === null).length;
+  const rows = [
+    { key: 'pr', ic: '&#128230;', label: 'ใบขอซื้อรอรับสินค้า', n: prPending, loading: state.prLoading },
+    ...(HAS_BACKEND ? [
+      { key: 'strIn', ic: '&#128666;', label: 'สินค้าโอนจากสาขาอื่น รอรับเข้า', n: state.strToReceive.length, loading: state.strLoading },
+      { key: 'strOut', ic: '&#128228;', label: 'สาขาอื่นขอโอนจากสาขานี้ รอจ่าย', n: state.strToIssue.length, loading: state.strLoading }] : []),
+    { key: 'out', ic: '&#9888;', label: 'สินค้าหมด', n: out, loading: state.itemsLoading, warn: true },
+    { key: 'low', ic: '&#9888;', label: `สินค้าใกล้หมด (≤ ${CONFIG.LOW_STOCK_THRESHOLD})`, n: low, loading: state.itemsLoading, warn: true }
+  ];
+  const pending = rows.reduce((a, r) => a + (r.loading ? 0 : r.n), 0);
+  $('todoSub').textContent = rows.some(r => r.loading) ? 'กำลังโหลด…' : pending ? `สาขา ${state.branch}` : `สาขา ${state.branch} · ไม่มีงานค้าง`;
+  $('todoRows').innerHTML = rows.map(r => {
+    const cls = r.loading ? '' : !r.n ? ' done' : r.warn ? ' warn' : '';
+    const ct = r.loading ? '…' : r.n ? `${r.n.toLocaleString()} รายการ` : '&#10003; ไม่มี';
+    return `<button type="button" class="todo-row${cls}" data-todo="${r.key}"><span class="ic">${r.ic}</span><span class="lb">${r.label}</span><span class="ct">${ct}</span><span class="go">&rsaquo;</span></button>`;
+  }).join('');
+}
+function openTodo(key) {
+  if (key === 'pr') { goto('receipt'); chooseReceiptMode('pr'); }
+  else if (key === 'strIn') { goto('receipt'); chooseReceiptMode('str'); }
+  else if (key === 'strOut') { goto('issue'); chooseIssueMode('str'); }
+  else if (key === 'out' || key === 'low') { goto('inventory'); state.status1 = key; render(); }
 }
 function renderUser() {
   const on = HAS_BACKEND && !!state.session;
@@ -2401,9 +2441,10 @@ $('refresh6').addEventListener('click', () => {
   else loadSTR('history', { overlay: true }).then(() => { state.lastUpdated6h = new Date().toLocaleString(); toast('รีเฟรชแล้ว'); render(); });
 });
 
-/* usage report – opened from the branch picker (no branch needed) or the dashboard tile */
+$('todoRows').addEventListener('click', e => { const b = e.target.closest('[data-todo]'); if (b) openTodo(b.dataset.todo); });
+
+/* usage report – opened from the branch picker (no branch needed) */
 $('openReport0').addEventListener('click', () => { rp.back = 'branch'; goto('report'); });
-$('tileReport').addEventListener('click', () => { rp.back = 'dashboard'; }, true);   // runs before the generic data-goto handler
 $('toDash10').addEventListener('click', () => { rpHideTip(); state.view = rp.back === 'branch' || !state.branch ? 'branch' : 'dashboard'; render(); });
 $('rpItem').addEventListener('change', e => { rp.itemNo = e.target.value; try { localStorage.setItem(RP_ITEM_KEY, rp.itemNo); } catch (x) {} loadReport(); });
 $('rpRange').addEventListener('click', e => { const b = e.target.closest('button[data-range]'); if (!b) return; rpSetRange(b.dataset.range); loadReport(); });
