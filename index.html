@@ -873,6 +873,10 @@
         <button class="link-btn" id="backToIssueChoice2" type="button">&#8592; เปลี่ยนประเภทการเบิก</button>
       </div>
       <div class="toolbar">
+        <span class="field-hint" style="margin:0;flex:1">ใบจัดของจะพิมพ์อัตโนมัติเมื่อมีคำขอเข้ามา (ถ้าตั้งเครื่องพิมพ์ทางอีเมลไว้) · พิมพ์เองได้จากปุ่มนี้</span>
+        <button class="btn" id="printPick" type="button">&#128424; พิมพ์ใบจัดของ</button>
+      </div>
+      <div class="toolbar">
         <label class="search"><input id="q8" type="search" placeholder="ค้นหาด้วยเลขที่ใบขอโอน สาขา รหัสหรือชื่อสินค้า" autocomplete="off" aria-label="ค้นหา"></label>
         <span class="count" id="count8"></span>
       </div>
@@ -1089,9 +1093,9 @@
 const CONFIG = {
   // Supabase > Project Settings > API (or "Connect"): the Project URL and the PUBLIC key
   // ("publishable" sb_publishable_... or legacy "anon"). NEVER put the secret / service_role key here.
-  SUPABASE_URL: 'https://rxiszjmvcpukvtkstday.supabase.co',             // e.g. 'https://abcdefgh.supabase.co'
+  SUPABASE_URL: 'https://rxiszjmvcpukvtkstday.supabase.co',          // e.g. 'https://abcdefgh.supabase.co'
   SUPABASE_KEY: 'sb_publishable_xqTfP6U6CYtgsDOjKNrCQw_1OcQGqFT',
-  // Staff sign in with their own account. New accounts need the invite code set in app_settings (5-upgrade-login-str.sql).
+  // Staff sign in with their own account. New accounts need the invite code set in cd_app_settings (5-upgrade-login-str.sql).
 
   // Optional read-only mode (no database): paste the Google Sheet link
   // (Share > "Anyone with the link" > Viewer). Request Purchase / Goods Receipt / Goods Issue need Supabase.
@@ -1874,6 +1878,70 @@ function renderDashboard() {
   $('branchName0').textContent = state.branch;
   renderTodo();
 }
+// Fill picking-template.html (placeholders + one <!--ROW-->...<!--/ROW--> block). Returns null if the template looks broken.
+function fillPickingTemplate_(tpl, doc, fmtDate) {
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const num = n => Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  const m = String(tpl || '').match(/<!--ROW-->([\s\S]*?)<!--\/ROW-->/);
+  if (!m || tpl.indexOf('{{STR_ID}}') < 0) return null;
+  const put = (s, vals) => s.replace(/\{\{([A-Z_]+)\}\}/g, (all, k) => (k in vals ? vals[k] : all));
+  const rows = doc.lines.map((l, i) => put(m[1], { NO: String(i + 1), CODE: esc(l.itemNo), NAME: esc(l.itemName), UNIT: esc(l.unit), QTY: num(l.requestQty) })).join('');
+  return put(tpl.replace(m[0], () => rows), { STR_ID: esc(doc.strId), DATE: esc(fmtDate(doc.createdAt)), FROM: esc(doc.fromBranch),
+    TO: esc(doc.toBranch), REQUESTED_BY: esc(doc.createdBy), ITEM_COUNT: String(doc.lines.length) });
+}
+// Built-in fallback layout (used when picking-template.html can't be loaded) – same as in 6-str-autoprint.gs. "ส่งจริง" and "หมายเหตุ" are left blank on purpose – filled in by hand.
+function buildPickingListHtml_(doc, fmtDate) {
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const num = n => Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  const rows = doc.lines.map((l, i) =>
+    '<tr><td class="c">' + (i + 1) + '</td><td>' + esc(l.itemNo) + '</td><td>' + esc(l.itemName) + '</td><td class="c">' + esc(l.unit) +
+    '</td><td class="r">' + num(l.requestQty) + '</td><td class="blank"></td><td class="blank wide"></td></tr>').join('');
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><style>' +
+    '@page{size:A4;margin:12mm 12mm 14mm}body{margin:0;font-family:"Sarabun","Noto Sans Thai",Tahoma,Arial,sans-serif;font-size:12pt;color:#000}' +
+    'h1{font-size:18pt;margin:0 0 1mm}.doc{font-size:15pt;font-weight:bold}.meta{width:100%;border-collapse:collapse;margin:1mm 0 3mm}' +
+    '.meta td{padding:1mm 0;font-size:12pt}.meta b{font-size:14pt}' +
+    'table.items{width:100%;border-collapse:collapse}table.items th,table.items td{border:1px solid #000;padding:1.6mm 2mm}' +
+    'table.items th{background:#eee;font-size:11pt}table.items thead{display:table-header-group}table.items tr{page-break-inside:avoid;break-inside:avoid}' +
+    '.c{text-align:center}.r{text-align:right}.blank{height:7.5mm;width:24mm}.wide{width:34mm}' +
+    '.note{margin-top:3mm;font-size:10.5pt;page-break-inside:avoid}.sign{width:100%;margin-top:6mm;border-collapse:collapse;page-break-inside:avoid}.sign td{width:33%;text-align:center;padding-top:9mm;font-size:11pt}' +
+    '</style></head><body>' +
+    '<h1>ใบจัดสินค้า (คำขอโอนระหว่างสาขา)</h1>' +
+    '<table class="meta"><tr><td>เลขที่ <span class="doc">' + esc(doc.strId) + '</span></td><td style="text-align:right">วันที่ขอ ' + esc(fmtDate(doc.createdAt)) + '</td></tr>' +
+    '<tr><td>จัดของจากสาขา <b>' + esc(doc.fromBranch) + '</b> &nbsp;→&nbsp; ส่งให้สาขา <b>' + esc(doc.toBranch) + '</b></td><td style="text-align:right">ผู้ขอ ' + esc(doc.createdBy) + '</td></tr></table>' +
+    '<table class="items"><thead><tr><th>#</th><th>รหัส</th><th>รายการ</th><th>หน่วย</th><th>จำนวนที่ขอ</th><th>ส่งจริง</th><th>หมายเหตุ</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+    '<div class="note"><b>' + esc(doc.strId) + '</b> · ' + esc(doc.fromBranch) + ' → ' + esc(doc.toBranch) + ' · รวม ' + doc.lines.length + ' รายการ<br>เขียนจำนวนที่ส่งจริงในช่อง &ldquo;ส่งจริง&rdquo; (ส่งน้อยกว่าที่ขอได้ / ไม่มีของให้ใส่ 0) แล้วบันทึกในแอป: ' +
+    '<b>เบิกสินค้า → จ่ายสินค้าตามใบขอโอน</b> · ส่งใบนี้ไปพร้อมสินค้าเพื่อให้สาขาผู้ขอตรวจรับ</div>' +
+    '<table class="sign"><tr><td>____________________<br>ผู้จัดของ</td><td>____________________<br>ผู้ส่ง</td><td>____________________<br>ผู้รับ (สาขา ' + esc(doc.toBranch) + ')</td></tr></table>' +
+    '</body></html>';
+}
+// print picking lists for the ticked STR lines' documents (or every pending request shown) in a new window.
+// Layout comes from picking-template.html next to this page (edit that file to change the printout).
+async function printPickingLists() {
+  const ticked = new Set(state.strToIssue.filter(x => state.sel8[x.row]).map(x => x.strId));
+  const lines = strIssueVisible().filter(x => !ticked.size || ticked.has(x.strId));
+  if (!lines.length) return toast('ไม่มีใบขอโอนที่รอจ่าย');
+  const docs = [];
+  lines.forEach(x => {
+    let d = docs.find(k => k.strId === x.strId);
+    if (!d) docs.push(d = { strId: x.strId, fromBranch: x.fromBranch, toBranch: x.toBranch, createdBy: x.createdBy, createdAt: x.date, lines: [] });
+    d.lines.push({ itemNo: x.itemNo, itemName: x.itemName, unit: x.unit, requestQty: x.requestQty });
+  });
+  const w = window.open('', '_blank');                       // open now (inside the tap) so it isn't blocked as a pop-up
+  if (!w) return toast('เบราว์เซอร์บล็อกหน้าต่างพิมพ์ — กรุณาอนุญาตป๊อปอัป');
+  w.document.write('<p style="font-family:sans-serif">กำลังเตรียมใบจัดสินค้า…</p>');
+  let tpl = '';
+  try { const r = await fetch('picking-template.html', { cache: 'no-cache' }); if (r.ok) tpl = await r.text(); } catch (e) { /* use built-in */ }
+  const date = v => v;
+  const full = docs.map(d => fillPickingTemplate_(tpl, d, date) || buildPickingListHtml_(d, date));
+  const css = (full[0].match(/<style[\s\S]*?<\/style>/g) || []).join('');
+  const body = h => (h.match(/<body[^>]*>([\s\S]*)<\/body>/) || [, h])[1];
+  w.document.open();
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>ใบจัดสินค้า</title>' + css +
+    '<style>.page{page-break-after:always}.page:last-child{page-break-after:auto}</style></head><body>' +
+    full.map(h => '<div class="page">' + body(h) + '</div>').join('') + '<script>window.onload=function(){window.print()}<\/script></body></html>');
+  w.document.close();
+}
+
 /* ---------- material master data (managers) ---------- */
 const MAT_TYPES = [['raw', 'วัตถุดิบ', 'R'], ['sauce', 'ซอส', 'S'], ['packaging', 'บรรจุภัณฑ์', 'P'], ['other', 'อื่นๆ', 'O']];
 const matTypeLabel = t => (MAT_TYPES.find(x => x[0] === t) || MAT_TYPES[3])[1];
@@ -2812,6 +2880,7 @@ $('refresh5').addEventListener('click', () => {
 });
 document.querySelectorAll('[data-issue-mode]').forEach(el => el.addEventListener('click', () => chooseIssueMode(el.dataset.issueMode)));
 ['backToIssueChoice1', 'backToIssueChoice2'].forEach(id => $(id).addEventListener('click', () => { state.issueMode = null; render(); }));
+$('printPick').addEventListener('click', printPickingLists);
 $('q8').addEventListener('input', e => { state.q8 = e.target.value; render(); });
 
 /* stock transfer request */
