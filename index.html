@@ -87,6 +87,17 @@
   .todo-row.done { color: var(--muted); }
   .todo-row.done .ct { font-weight: 400; }
   .todo-row.warn .ct { color: var(--out-ink); }
+  .tools-h { font-size: 12.5px; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
+  .chip { display: inline-block; border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; font-size: 12px; margin: 1px 4px 1px 0; white-space: nowrap; }
+  .chip .q { color: var(--muted); margin-left: 4px; font-variant-numeric: tabular-nums; }
+  .mf label.lbl { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 5px; }
+  .mf input[type=text] { width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border); font: inherit; background: var(--surface); color: var(--text); }
+  .mf .code { font-size: 20px; font-weight: 650; letter-spacing: .02em; }
+  .mf .code small { font-size: 12.5px; font-weight: 400; color: var(--muted); margin-left: 6px; }
+  .mf .brs { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px; }
+  .mf .brs label { display: flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 14px; }
+  .mf .brs label.locked { background: var(--surface-2); }
+  .mf .brs .n { margin-left: auto; font-size: 12px; color: var(--muted); }
   .report-entry { border-top: 1px solid var(--border); margin-top: 18px; padding-top: 16px; }
   .userline { font-size: 13px; color: var(--muted); margin-top: 14px; text-align: center; }
   .userline strong { color: var(--text); }
@@ -316,7 +327,9 @@
     <button class="btn primary" id="continue" type="button" disabled>ดำเนินการต่อ</button>
     <button class="btn retry" id="retry" type="button" hidden>ลองใหม่อีกครั้ง</button>
     <div class="report-entry" id="reportEntry0" hidden>
+      <div class="tools-h">เครื่องมือผู้จัดการ</div>
       <button class="btn" id="openReport0" type="button">&#128202; ดูรายงานการใช้สินค้า (ทุกสาขา)</button>
+      <button class="btn" id="openMaterials0" type="button" style="margin-top:8px">&#128230; ข้อมูลวัตถุดิบ (เพิ่ม / แก้ไข / ลบ)</button>
     </div>
     <div class="userline" id="userline0" hidden>เข้าสู่ระบบในชื่อ <strong class="js-username"></strong> · <button class="link-btn js-logout" type="button">ออกจากระบบ</button></div>
   </section>
@@ -463,6 +476,35 @@
         </table>
       </div>
       <div class="empty" id="empty2" hidden></div>
+    </div>
+  </section>
+
+  <!-- STEP 3h: Material master data (managers) -->
+  <section id="view-materials" hidden>
+    <header class="top">
+      <div>
+        <h2 class="pagetitle">ข้อมูลวัตถุดิบ (Master data)</h2>
+        <div class="sub">เพิ่ม แก้ไข หรือลบสินค้า และเลือกว่าสาขาไหนใช้ · รหัสใหม่รันเลขอัตโนมัติตามประเภท</div>
+      </div>
+      <div class="head-actions">
+        <button class="btn" id="toPicker12" type="button">&#8592; ย้อนกลับ</button>
+        <button class="btn" id="refresh12" type="button">&#8635; รีเฟรช</button>
+        <button class="btn primary" id="addMat" type="button">+ เพิ่มรายการ</button>
+      </div>
+    </header>
+    <div class="toolbar">
+      <div class="seg" id="matType"></div>
+      <label class="search"><input id="q12" type="search" placeholder="ค้นหาด้วยรหัสหรือชื่อ" autocomplete="off" aria-label="ค้นหา"></label>
+      <span class="count" id="count12"></span>
+    </div>
+    <div class="table-box">
+      <div class="scroll">
+        <table>
+          <thead><tr><th>รหัส</th><th>ชื่อสินค้า</th><th>ประเภท</th><th class="hide-sm">หน่วยนับ</th><th>สาขาที่ใช้ (คงเหลือ)</th><th class="actions"></th></tr></thead>
+          <tbody id="rows12"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="empty12" hidden></div>
     </div>
   </section>
 
@@ -914,6 +956,42 @@
   </div>
 </div>
 
+<!-- Material add / edit -->
+<div class="modal-overlay" id="matModal" hidden>
+  <div class="modal mf">
+    <h3 id="mfTitle"></h3>
+    <label class="lbl">ประเภท</label>
+    <div class="seg" id="mfType"></div>
+    <label class="lbl">รหัสสินค้า</label>
+    <div class="code" id="mfCode"></div>
+    <label class="lbl" for="mfName">ชื่อสินค้า</label>
+    <input type="text" id="mfName" maxlength="120" autocomplete="off">
+    <label class="lbl" for="mfUnit">หน่วยนับ</label>
+    <input type="text" id="mfUnit" maxlength="20" list="mfUnits" autocomplete="off" placeholder="เช่น g, kg, ml, pcs, แพ็ค">
+    <datalist id="mfUnits"></datalist>
+    <label class="lbl">สาขาที่ใช้สินค้านี้ <button class="link-btn" id="mfAll" type="button" style="font-weight:400;margin-left:6px">เลือกทุกสาขา</button></label>
+    <div class="brs" id="mfBranches"></div>
+    <div class="field-hint">สาขาที่เพิ่มใหม่จะเริ่มที่คงเหลือ 0 · เอาสาขาออกได้เมื่อคงเหลือเป็น 0 และไม่มีใบขอซื้อ/ใบขอโอนค้าง</div>
+    <div class="auth-error" id="mfError" hidden style="margin-top:10px"></div>
+    <div class="modal-actions">
+      <button class="btn" id="mfCancel" type="button">ยกเลิก</button>
+      <button class="btn primary" id="mfSave" type="button">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- Material delete confirmation -->
+<div class="modal-overlay" id="matDelModal" hidden>
+  <div class="modal">
+    <h3>ลบสินค้า?</h3>
+    <p class="hint" id="mdText"></p>
+    <div class="modal-actions">
+      <button class="btn" id="mdCancel" type="button">ยกเลิก</button>
+      <button class="btn danger" id="mdConfirm" type="button">ลบสินค้า</button>
+    </div>
+  </div>
+</div>
+
 <!-- Shared success popup for the multi-line flows -->
 <div class="modal-overlay" id="doneModal" hidden>
   <div class="modal">
@@ -1011,7 +1089,6 @@
 const CONFIG = {
   // Supabase > Project Settings > API (or "Connect"): the Project URL and the PUBLIC key
   // ("publishable" sb_publishable_... or legacy "anon"). NEVER put the secret / service_role key here.
-          // e.g. 'https://abcdefgh.supabase.co'
   SUPABASE_URL: 'https://rxiszjmvcpukvtkstday.supabase.co',             // e.g. 'https://abcdefgh.supabase.co'
   SUPABASE_KEY: 'sb_publishable_xqTfP6U6CYtgsDOjKNrCQw_1OcQGqFT',
   // Staff sign in with their own account. New accounts need the invite code set in app_settings (5-upgrade-login-str.sql).
@@ -1218,6 +1295,9 @@ const RPC = {
   catalog:       p => ['get_item_catalog', {}],
   stockAll:      p => ['get_stock_all', {}],
   setMin:        b => ['set_min_qty', { p_branch: b.branch, p_lines: b.lines }],
+  materials:     p => ['get_materials', {}],
+  saveMaterial:  b => ['save_material', { p_item_no: b.itemNo || '', p_type: b.type, p_name: b.name, p_unit: b.unit, p_branches: b.branches }],
+  deleteMaterial: b => ['delete_material', { p_item_no: b.itemNo }],
   usage:         p => ['get_usage_report', { p_item_no: p.itemNo, p_from: p.from, p_to: p.to, p_group: p.group }]
 };
 const NO_SESSION = new Set(['sign_up', 'sign_in']);
@@ -1243,6 +1323,7 @@ async function callSupabase(params, opts) {
       state.minDraft = {};
       state.role = 'staff'; if (state.session) { state.session.role = 'staff'; sessionSave(state.session); }
       if (state.view === 'report') { state.view = rp.back || 'dashboard'; render(); }
+      if (state.view === 'materials') { closeModal('matModal'); closeModal('matDelModal'); state.view = 'branch'; render(); }
       throw new Error('ส่วนนี้สำหรับผู้จัดการเท่านั้น');
     }
     throw new Error(msg);
@@ -1793,6 +1874,78 @@ function renderDashboard() {
   $('branchName0').textContent = state.branch;
   renderTodo();
 }
+/* ---------- material master data (managers) ---------- */
+const MAT_TYPES = [['raw', 'วัตถุดิบ', 'R'], ['sauce', 'ซอส', 'S'], ['packaging', 'บรรจุภัณฑ์', 'P'], ['other', 'อื่นๆ', 'O']];
+const matTypeLabel = t => (MAT_TYPES.find(x => x[0] === t) || MAT_TYPES[3])[1];
+const mat = { items: [], next: {}, filter: 'all', q: '', loading: false, edit: null, type: 'raw', saving: false, del: null };
+async function loadMaterials(opts) {
+  mat.loading = true; render();
+  try { const d = await callScriptGet({ action: 'materials' }, { overlay: !!(opts && opts.overlay) && !mat.items.length }); mat.items = d.items; mat.next = d.next; }
+  catch (err) { banner('<strong>โหลดข้อมูลวัตถุดิบไม่สำเร็จ</strong> ' + escapeHTML(err.message || err), true); }
+  finally { mat.loading = false; render(); }
+}
+function renderMaterials() {
+  const counts = { all: mat.items.length }; mat.items.forEach(x => { counts[x.type] = (counts[x.type] || 0) + 1; });
+  $('matType').innerHTML = [['all', 'ทั้งหมด']].concat(MAT_TYPES).map(([k, l, pre]) =>
+    `<button type="button" data-t="${k}" class="${mat.filter === k ? 'active' : ''}">${l}${pre ? ' (' + pre + ')' : ''} <span style="color:var(--muted)">${counts[k] || 0}</span></button>`).join('');
+  const q = mat.q.trim().toLowerCase();
+  const list = mat.items.filter(x => (mat.filter === 'all' || x.type === mat.filter) && (!q || x.itemNo.toLowerCase().includes(q) || x.itemName.toLowerCase().includes(q)));
+  $('count12').textContent = mat.loading && !mat.items.length ? '' : list.length + ' รายการ';
+  $('rows12').innerHTML = list.map(x => `<tr><td><strong>${escapeHTML(x.itemNo)}</strong></td><td class="name">${escapeHTML(x.itemName)}</td>` +
+    `<td><span class="badge closed">${matTypeLabel(x.type)}</span></td><td class="hide-sm unit">${escapeHTML(x.unit)}</td>` +
+    `<td class="name">${x.branches.length ? x.branches.map(b => `<span class="chip">${escapeHTML(b.branch)}<span class="q">${fmtN(b.qty)}</span></span>`).join('') : '<span style="color:var(--muted)">ยังไม่มีสาขา</span>'}</td>` +
+    `<td class="actions"><button class="btn small" data-edit="${escapeHTML(x.itemNo)}">แก้ไข</button><button class="btn small" data-del="${escapeHTML(x.itemNo)}">ลบ</button></td></tr>`).join('');
+  const empty = $('empty12'); empty.hidden = list.length > 0;
+  if (!list.length) empty.textContent = mat.loading ? 'กำลังโหลด…' : mat.items.length ? 'ไม่พบรายการที่ตรงกับตัวกรอง' : 'ยังไม่มีสินค้า กด “+ เพิ่มรายการ”';
+}
+function openMatForm(itemNo) {
+  const x = itemNo ? mat.items.find(i => i.itemNo === itemNo) : null;
+  mat.edit = x ? x.itemNo : ''; mat.type = x ? x.type : (mat.filter !== 'all' ? mat.filter : 'raw');
+  $('mfTitle').textContent = x ? 'แก้ไขสินค้า ' + x.itemNo : 'เพิ่มสินค้าใหม่';
+  $('mfName').value = x ? x.itemName : ''; $('mfUnit').value = x ? x.unit : '';
+  $('mfUnits').innerHTML = [...new Set(mat.items.map(i => i.unit).filter(Boolean).concat(['g', 'kg', 'ml', 'l', 'pcs', 'แพ็ค']))].map(u => `<option value="${escapeHTML(u)}">`).join('');
+  const have = {}; (x ? x.branches : []).forEach(b => { have[b.branch.toLowerCase()] = b; });
+  $('mfBranches').innerHTML = state.branches.map(b => {
+    const h = have[b.toLowerCase()], locked = h && Number(h.qty) !== 0;
+    return `<label class="${locked ? 'locked' : ''}" title="${locked ? 'คงเหลือไม่เป็น 0 — เอาสาขานี้ออกไม่ได้' : ''}"><input type="checkbox" value="${escapeHTML(b)}" ${h ? 'checked' : ''} ${locked ? 'disabled' : ''}>` +
+      `${escapeHTML(b)}${h ? `<span class="n">คงเหลือ ${fmtN(h.qty)}</span>` : ''}</label>`;
+  }).join('');
+  $('mfError').hidden = true; $('mfSave').disabled = false; $('mfSave').textContent = 'บันทึก';
+  renderMatForm(); $('matModal').hidden = false; setTimeout(() => $('mfName').focus(), 50);
+}
+function renderMatForm() {
+  $('mfType').innerHTML = MAT_TYPES.map(([k, l, pre]) => `<button type="button" data-t="${k}" class="${mat.type === k ? 'active' : ''}">${l} (${pre})</button>`).join('');
+  $('mfCode').innerHTML = mat.edit ? escapeHTML(mat.edit) + '<small>รหัสเดิม (เปลี่ยนไม่ได้)</small>'
+    : escapeHTML(mat.next[mat.type] || '…') + '<small>เลขถัดไป · ระบบยืนยันเลขจริงตอนบันทึก</small>';
+}
+async function saveMatForm() {
+  if (mat.saving) return;
+  const branches = [...$('mfBranches').querySelectorAll('input:checked')].map(i => i.value);
+  const f = { itemNo: mat.edit, type: mat.type, name: $('mfName').value.trim(), unit: $('mfUnit').value.trim(), branches };
+  const e = !f.name ? 'กรุณาระบุชื่อสินค้า' : !f.unit ? 'กรุณาระบุหน่วยนับ' : !branches.length ? 'เลือกอย่างน้อย 1 สาขา' : '';
+  if (e) return authError('mfError', e);
+  mat.saving = true; $('mfSave').disabled = true; $('mfSave').textContent = 'กำลังบันทึก…';
+  try {
+    const d = await callScriptPost(Object.assign({ action: 'saveMaterial' }, f));
+    closeModal('matModal');
+    toast(d.created ? `เพิ่ม ${d.itemNo} ${f.name} แล้ว` : `บันทึก ${d.itemNo} แล้ว`);
+    afterMaterialChange();
+  } catch (err) { authError('mfError', err.message || err); $('mfSave').disabled = false; $('mfSave').textContent = 'บันทึก'; }
+  finally { mat.saving = false; }
+}
+async function deleteMat() {
+  const no = mat.del; if (!no) return;
+  $('mdConfirm').disabled = true;
+  try { await callScriptPost({ action: 'deleteMaterial', itemNo: no }); closeModal('matDelModal'); toast('ลบ ' + no + ' แล้ว'); afterMaterialChange(); }
+  catch (err) { $('mdText').innerHTML = `<span style="color:var(--out-ink)">${escapeHTML(err.message || err)}</span>`; }
+  finally { $('mdConfirm').disabled = false; }
+}
+// other screens cache item lists – refresh what's affected
+function afterMaterialChange() {
+  loadMaterials(); rp.catalog = []; state.stockAll = [];
+  if (state.branch) loadItems(true, { overlay: false });
+}
+
 /* ---------- restock screen ---------- */
 async function openRestock() {
   state.rsLoading = true; render();
@@ -2459,6 +2612,7 @@ function render() {
   $('view-transfer').hidden = v !== 'transfer';
   $('view-report').hidden = v !== 'report';
   $('view-restock').hidden = v !== 'restock';
+  $('view-materials').hidden = v !== 'materials';
   if (v !== 'report') rpHideTip();
   $('view-replenish').hidden = v !== 'replenish';
   if (v === 'replenish') { $('branchName9').textContent = state.branch; $('tileTransfer').hidden = !HAS_BACKEND; }
@@ -2476,6 +2630,7 @@ function render() {
   else if (v === 'transfer') renderTransfer();
   else if (v === 'report') renderReport();
   else if (v === 'restock') renderRestock();
+  else if (v === 'materials') renderMaterials();
   else if (v === 'issue') {
     $('branchName5').textContent = state.branch;
     const m = state.issueMode;
@@ -2519,6 +2674,7 @@ function goto(view) {
   if (view === 'issue') { state.issueMode = HAS_BACKEND ? null : 'general'; if (state.issueMode === 'general') chooseIssueMode('general'); }
   if (view === 'receipt') { state.receiptMode = null; }
   if (view === 'restock') openRestock();
+  if (view === 'materials') { if (!isManager()) { toast('ส่วนนี้สำหรับผู้จัดการเท่านั้น'); state.view = 'branch'; } else loadMaterials({ overlay: true }); }
   if (view === 'inventory') state.minDraft = {};
   if (view === 'report') { if (!isManager()) { toast('รายงานนี้สำหรับผู้จัดการเท่านั้น'); state.view = rp.back || 'dashboard'; } else openReport(); }
   if (view === 'transfer') {
@@ -2682,6 +2838,29 @@ $('todoRows').addEventListener('click', e => { const b = e.target.closest('[data
 
 /* usage report – opened from the branch picker (no branch needed) */
 $('openReport0').addEventListener('click', () => { rp.back = 'branch'; goto('report'); });
+
+/* material master data */
+$('openMaterials0').addEventListener('click', () => goto('materials'));
+$('toPicker12').addEventListener('click', () => { state.view = 'branch'; render(); });
+$('refresh12').addEventListener('click', () => loadMaterials().then(() => toast('รีเฟรชแล้ว')));
+$('addMat').addEventListener('click', () => openMatForm(''));
+$('matType').addEventListener('click', e => { const b = e.target.closest('button[data-t]'); if (b) { mat.filter = b.dataset.t; render(); } });
+$('q12').addEventListener('input', e => { mat.q = e.target.value; render(); });
+$('rows12').addEventListener('click', e => {
+  const ed = e.target.closest('[data-edit]'); if (ed) return openMatForm(ed.dataset.edit);
+  const dl = e.target.closest('[data-del]'); if (!dl) return;
+  const x = mat.items.find(i => i.itemNo === dl.dataset.del); mat.del = x.itemNo;
+  $('mdText').innerHTML = `ลบ <strong>${escapeHTML(x.itemNo)} ${escapeHTML(x.itemName)}</strong> ออกจากทุกสาขา (${x.branches.map(b => escapeHTML(b.branch)).join(', ') || '-'})<br>` +
+    `ลบได้เมื่อคงเหลือทุกสาขาเป็น 0 และไม่มีใบขอซื้อ/ใบขอโอนค้าง · ประวัติการเคลื่อนไหวเดิมยังเก็บไว้ · รหัสนี้จะไม่ถูกนำกลับมาใช้ใหม่`;
+  $('matDelModal').hidden = false;
+});
+$('mfType').addEventListener('click', e => { const b = e.target.closest('button[data-t]'); if (b) { mat.type = b.dataset.t; renderMatForm(); } });
+$('mfAll').addEventListener('click', () => { const boxes = [...$('mfBranches').querySelectorAll('input:not(:disabled)')]; const all = boxes.every(b => b.checked); boxes.forEach(b => { b.checked = !all; }); });
+$('mfCancel').addEventListener('click', () => closeModal('matModal'));
+$('mfSave').addEventListener('click', saveMatForm);
+$('mfName').addEventListener('keydown', e => { if (e.key === 'Enter') saveMatForm(); });
+$('mdCancel').addEventListener('click', () => closeModal('matDelModal'));
+$('mdConfirm').addEventListener('click', deleteMat);
 $('toDash10').addEventListener('click', () => { rpHideTip(); state.view = rp.back === 'branch' || !state.branch ? 'branch' : 'dashboard'; render(); });
 $('rpItem').addEventListener('change', e => { rp.itemNo = e.target.value; try { localStorage.setItem(RP_ITEM_KEY, rp.itemNo); } catch (x) {} loadReport(); });
 $('rpRange').addEventListener('click', e => { const b = e.target.closest('button[data-range]'); if (!b) return; rpSetRange(b.dataset.range); loadReport(); });
@@ -2750,7 +2929,7 @@ $('issueReason').addEventListener('input', () => { if ($('issueReason').value.tr
 $('issueSuccessClose').addEventListener('click', () => { closeModal('issueSuccessModal'); refreshCurrentView(); });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeModal('prModal'); closeModal('prSuccessModal'); if (!state.savingLines) closeModal('lineModal'); closeModal('doneModal'); closeModal('directModal'); closeModal('grSuccessModal'); closeModal('issueModal'); closeModal('issueSuccessModal'); }
+  if (e.key === 'Escape') { closeModal('prModal'); closeModal('prSuccessModal'); if (!state.savingLines) closeModal('lineModal'); closeModal('doneModal'); closeModal('matModal'); closeModal('matDelModal'); closeModal('directModal'); closeModal('grSuccessModal'); closeModal('issueModal'); closeModal('issueSuccessModal'); }
 });
 
 if (HAS_BACKEND && !state.session) { state.view = 'login'; render(); }
