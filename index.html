@@ -143,6 +143,41 @@
   .rp-tip .t { font-weight: 650; margin-bottom: 2px; }
   .rp-tip .r { display: flex; justify-content: space-between; gap: 14px; font-variant-numeric: tabular-nums; }
   @media (max-width: 640px) { .rp-stats { grid-template-columns: repeat(2, 1fr); } .rp-stat .n { font-size: 22px; } }
+  /* − / + steppers next to quantity boxes (phones only) */
+  .step { display: none; }
+  /* ===== Phones: item-picking tables become cards (no sideways scrolling) ===== */
+  @media (max-width: 640px) {
+    table.pick thead { display: none; }
+    table.pick thead:has(th:first-child input) { display: block; }              /* keep "select all" */
+    table.pick thead:has(th:first-child input) tr:not(:last-child) { display: none; }
+    table.pick thead:has(th:first-child input) tr:last-child { display: flex; align-items: center; }
+    table.pick thead:has(th:first-child input) tr:last-child th { display: none; }
+    table.pick thead:has(th:first-child input) tr:last-child th:first-child { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; background: var(--surface-2); border: 0; }
+    table.pick thead th:first-child::after { content: "เลือกทั้งหมด"; font-size: 13px; color: var(--muted); font-weight: 600; letter-spacing: 0; }
+    table.pick, table.pick tbody { display: block; width: 100%; }
+    table.pick tbody tr { display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; row-gap: 2px; position: relative;
+      padding: 11px 12px 11px 46px; border-bottom: 1px solid var(--border); min-height: 64px; }
+    table.pick tbody tr:has(td .qty-input) { padding-right: 150px; }
+    table.pick tbody tr:last-child { border-bottom: 0; }
+    table.pick tbody td { border: 0; padding: 0; white-space: normal; background: none !important; font-size: 12.5px; color: var(--muted); text-align: left; }
+    table.pick tbody tr:hover td { background: none; }
+    table.pick tbody td[data-label]:not(.name)::before { content: attr(data-label) " "; }
+    table.pick tbody td.name { order: -1; flex: 1 0 100%; font-size: 15px; font-weight: 600; color: var(--text); min-width: 0; }
+    table.pick tbody td:has(> input[type=checkbox]) { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); }
+    table.pick tbody td:has(> input[type=checkbox])::before, table.pick tbody td:has(.qty-input)::before { content: none !important; }
+    table.pick tbody td:has(.qty-input) { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 4px; }
+    table.pick tbody td:empty { display: none; }
+    table.pick .qty-input { width: 64px; min-height: 40px; font-size: 16px; text-align: center; padding: 6px 4px; }   /* 16px stops iPhone auto-zoom */
+    table.pick .step { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 40px; border: 1px solid var(--border);
+      border-radius: 8px; background: var(--surface); font-size: 20px; line-height: 1; color: var(--text); padding: 0; }
+    table.pick .step:active { background: var(--surface-2); }
+    table.pick tbody tr.selected { background: var(--ok-bg); }
+    table.pick tbody tr.invalid { background: var(--out-bg); }
+    table.pick input[type=checkbox] { width: 22px; height: 22px; }
+    table.pick .badge { font-size: 11px; padding: 1px 7px; vertical-align: 1px; }
+    .search input, .rp-filters select, .rp-filters input[type=date], .src-select, .picker input, .picker select, .reason-input { font-size: 16px; }
+    .selectbar { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+  }
   .src-select { padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; min-width: 200px; }
   select:focus, .search input:focus, .qty-input:focus, .reason-input:focus { outline: 2px solid var(--accent); outline-offset: 0; }
 
@@ -1374,6 +1409,7 @@ async function loadBranches(fresh) {
       const match = saved && state.branches.find(b => same(b, saved));
       if (match) { state.branch = match; state.view = 'dashboard'; prefetchBranchData(); }
     }
+    if (pendingRoute) setTimeout(() => applyRoute(pendingRoute), 0);
     if (!state.branches.length) banner('<strong>ไม่พบสาขา</strong> ตรวจสอบว่าแท็บที่ 2 มีคอลัมน์หัวข้อ "Branch" พร้อมรายชื่อสาขาด้านล่าง', true);
   } catch (err) {
     if (!state.branches.length) {
@@ -2673,6 +2709,106 @@ function rpIndexAt(clientX) {
 }
 
 /* ---------- master render ---------- */
+/* ---------- phones: card layout helpers for the item-picking tables ---------- */
+const PICK_TABLES = ['rows2', 'rows4', 'rows5', 'rows6', 'rows3', 'rows7', 'rows8', 'rows11'];
+PICK_TABLES.forEach(id => { const t = $(id) && $(id).closest('table'); if (t) t.classList.add('pick'); });
+// copy each column heading onto its cells (shown as small labels on phones) and add − / + next to quantity boxes
+function decoratePickTables() {
+  PICK_TABLES.forEach(id => {
+    const tb = $(id); if (!tb || tb.closest('[hidden]')) return;
+    const heads = [...tb.closest('table').querySelectorAll('thead tr:last-child th')].map(th => th.textContent.replace(/[▲▼]/g, '').trim());
+    tb.querySelectorAll('tr').forEach(tr => {
+      [...tr.cells].forEach((td, i) => { if (heads[i] && !td.dataset.label) td.dataset.label = heads[i]; });
+      const qi = tr.querySelector('.qty-input');
+      if (qi && !qi.previousElementSibling) {
+        qi.setAttribute('inputmode', 'decimal');
+        qi.insertAdjacentHTML('beforebegin', '<button type="button" class="step" data-d="-1" aria-label="ลด">−</button>');
+        qi.insertAdjacentHTML('afterend', '<button type="button" class="step" data-d="1" aria-label="เพิ่ม">+</button>');
+      }
+    });
+  });
+}
+document.addEventListener('click', e => {
+  const tb = e.target.closest('table.pick tbody'); if (!tb) return;
+  const step = e.target.closest('.step');
+  const tr = e.target.closest('tr'); if (!tr) return;
+  const cb = tr.querySelector('input[type=checkbox]');
+  if (step) {
+    const qi = tr.querySelector('.qty-input');
+    if (qi.disabled) { if (cb && !cb.checked) cb.click(); return; }    // first tap on + selects the row
+    const v = Math.max(0, (Number(qi.value) || 0) + Number(step.dataset.d));
+    qi.value = String(v);
+    qi.dispatchEvent(new Event('input', { bubbles: true })); qi.dispatchEvent(new Event('change', { bubbles: true }));
+    return;
+  }
+  // tap anywhere on a card (phones) selects / unselects it
+  if (window.matchMedia('(max-width: 640px)').matches && cb && !e.target.closest('input, button, a, select, label')) cb.click();
+});
+
+/* ---------- an address per screen: stock-check.html#/issue/str?b=Sathorn ----------
+   Back/forward move between screens, refresh stays on the same screen, and any screen can be bookmarked,
+   added to the iPhone home screen or sent as a link. #/str/STR0012?b=Sathorn opens one request. */
+const ROUTE_VIEWS = ['dashboard', 'inventory', 'replenish', 'purchase', 'transfer', 'receipt', 'issue', 'restock', 'report', 'materials', 'str'];
+const BRANCHLESS = new Set(['report', 'materials']);   // these screens cover all branches
+let routing = false;                                   // applying an address → don't add history entries
+let pendingRoute = /^#\/[a-z]/.test(location.hash) && !/^#\/login/.test(location.hash) ? location.hash : null;   // waiting for login / branch
+function routeOf() {
+  const v = state.view;
+  if (v === 'login') return '#/login';
+  if (v === 'branch' || !v) return '#/';
+  let path = v;
+  if (v === 'receipt' && state.receiptMode) path += '/' + state.receiptMode;
+  if (v === 'issue' && state.issueMode) path += '/' + state.issueMode;
+  if (v === 'transfer' && state.transferTab === 'status') path += '/status';
+  if (v === 'restock' && state.rsFilter && state.rsFilter !== 'all') path += '/' + state.rsFilter;
+  return '#/' + path + (!BRANCHLESS.has(v) && state.branch ? '?b=' + encodeURIComponent(state.branch) : '');
+}
+function syncUrl() {
+  if (pendingRoute) return;                            // don't overwrite an address we still have to open
+  const h = routeOf(); if (location.hash === h) return;
+  const samePlace = location.hash.split('?')[0] === h.split('?')[0];
+  if (routing || samePlace || !location.hash) history.replaceState(null, '', h); else history.pushState(null, '', h);
+}
+function parseRoute(hash) {
+  const [path, query] = String(hash || '').replace(/^#\/?/, '').split('?');
+  return { parts: path.split('/').filter(Boolean).map(decodeURIComponent), branch: new URLSearchParams(query || '').get('b') || '' };
+}
+async function applyRoute(hash) {
+  const { parts, branch } = parseRoute(hash);
+  const [view, sub] = parts;
+  if (!view || view === 'login') { pendingRoute = null; if (state.session || !HAS_BACKEND) { state.view = 'branch'; render(); } return; }
+  if (!ROUTE_VIEWS.includes(view)) { pendingRoute = null; return; }
+  if (HAS_BACKEND && !state.session) { pendingRoute = hash; return; }          // after login
+  if (!state.loaded) { pendingRoute = hash; return; }                           // after the branch list loads
+  if (!BRANCHLESS.has(view)) {
+    const want = branch ? state.branches.find(x => same(x, branch)) : state.branch;
+    if (!want) { pendingRoute = hash; state.view = 'branch'; render(); return; } // after a branch is picked
+    if (!same(want, state.branch)) { state.branch = want; lsSet(want); prefetchBranchData(); }
+  } else if (view === 'report') rp.back = state.branch ? 'dashboard' : 'branch';
+  pendingRoute = null; routing = true;
+  try {
+    if (view === 'str') return await openStrLink(sub);
+    goto(view);
+    if (view === 'receipt' && ['pr', 'direct', 'str'].includes(sub)) chooseReceiptMode(sub);
+    if (view === 'issue' && ['general', 'str'].includes(sub)) chooseIssueMode(sub);
+    if (view === 'transfer' && sub === 'status') $('trTabStatus').click();
+    if (view === 'restock' && ['out', 'low'].includes(sub)) { state.rsFilter = sub; render(); }
+  } finally { routing = false; syncUrl(); }
+}
+// #/str/STR0012 → the supplying branch sees it in "จ่ายตามใบขอโอน", the requesting branch in "รับสินค้าโอน" or its status list
+async function openStrLink(strId) {
+  const id = String(strId || '').toUpperCase();
+  await Promise.all([loadSTR('to_issue', { overlay: true }), loadSTR('to_receive', { overlay: false })]);
+  if (state.strToIssue.some(x => x.strId === id)) { goto('issue'); chooseIssueMode('str'); state.q8 = id; $('q8').value = id; render(); return; }
+  if (state.strToReceive.some(x => x.strId === id)) { goto('receipt'); chooseReceiptMode('str'); return; }
+  goto('replenish'); goto('transfer'); $('trTabStatus').click();
+  toast(`${id} ไม่มีรายการที่ต้องจ่ายหรือรับที่สาขา ${state.branch} — แสดงสถานะใบขอโอน`);
+}
+window.addEventListener('popstate', () => {
+  closeModal('lineModal'); closeModal('doneModal'); closeModal('matModal'); closeModal('matDelModal'); rpHideTip();
+  applyRoute(location.hash);
+});
+
 function render() {
   const v = state.view;
   renderUser();
@@ -2732,6 +2868,8 @@ function render() {
   if (!(v === 'issue' && state.issueMode === 'general')) { const bar5 = $('selectbar5'); if (bar5) bar5.remove(); }
   Object.keys(FLOWS).forEach(f => { if (!FLOWS[f].active()) { const b = $(FLOWS[f].bar); if (b) b.remove(); } });
   if (v !== 'inventory') { const mb = $('selectbarMin'); if (mb) mb.remove(); }
+  decoratePickTables();
+  syncUrl();
 }
 
 /* ---------- navigation ---------- */
@@ -2776,6 +2914,7 @@ $('continue').addEventListener('click', async () => {
   state.branch = v; lsSet(v); goto('dashboard');
   // load everything this branch needs up front (with a "please wait, first load takes a moment"
   // overlay) so every tile opens instantly afterwards instead of each one fetching on its own.
+  if (pendingRoute) applyRoute(pendingRoute);
   await prefetchBranchData();
 });
 $('retry').addEventListener('click', () => loadBranches(true));
