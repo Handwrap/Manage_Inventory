@@ -87,6 +87,10 @@
   .todo-row.done { color: var(--muted); }
   .todo-row.done .ct { font-weight: 400; }
   .todo-row.warn .ct { color: var(--out-ink); }
+  .sess-warn { position: fixed; top: 0; left: 0; right: 0; z-index: 80; background: var(--low-bg); color: var(--low-ink); border-bottom: 1px solid var(--border);
+    padding: 8px 16px; text-align: center; font-size: 13.5px; }
+  #reloginModal { z-index: 95; }
+  .mf input[type=password] { font-size: 16px; }
   .tools-h { font-size: 12.5px; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
   .chip { display: inline-block; border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; font-size: 12px; margin: 1px 4px 1px 0; white-space: nowrap; }
   .chip .q { color: var(--muted); margin-left: 4px; font-variant-numeric: tabular-nums; }
@@ -995,6 +999,28 @@
   </div>
 </div>
 
+<!-- Login time running out -->
+<div class="sess-warn" id="sessWarn" hidden><span id="sessWarnText"></span> <button class="link-btn" id="sessWarnBtn" type="button">เข้าสู่ระบบใหม่ตอนนี้</button></div>
+
+<!-- Log in again on top of the current screen (nothing typed is lost) -->
+<div class="modal-overlay" id="reloginModal" hidden>
+  <div class="modal" style="max-width:400px">
+    <h3>&#128274; เข้าสู่ระบบอีกครั้ง</h3>
+    <p class="hint" id="reloginHint">ครบเวลาเข้าสู่ระบบแล้ว กรุณาใส่รหัสผ่านเพื่อทำงานต่อ · ข้อมูลที่เลือกหรือกรอกไว้บนหน้านี้ยังอยู่</p>
+    <form id="reloginForm" class="mf" novalidate>
+      <label class="lbl" for="rlLogin">ชื่อผู้ใช้</label>
+      <input type="text" id="rlLogin" readonly>
+      <label class="lbl" for="rlPassword">รหัสผ่าน</label>
+      <input type="password" id="rlPassword" autocomplete="current-password" style="width:100%;padding:9px 11px;border-radius:8px;border:1px solid var(--border);font:inherit">
+      <div class="auth-error" id="rlError" hidden style="margin-top:10px"></div>
+      <div class="modal-actions">
+        <button class="btn" id="rlSignOut" type="button">ออกจากระบบ / เปลี่ยนผู้ใช้</button>
+        <button class="btn primary" type="submit">เข้าสู่ระบบ</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Material add / edit -->
 <div class="modal-overlay" id="matModal" hidden>
   <div class="modal mf">
@@ -1390,7 +1416,10 @@ async function loadBranches(fresh) {
       const data = await callScriptGet({ action: 'branches' });
       state.branches = uniq(data.branches); state.demo = false; banner('');
       state.username = data.username || state.username; state.role = data.role || 'staff';
-      if (state.session && state.session.role !== state.role) { state.session.role = state.role; sessionSave(state.session); }
+      if (state.session && (state.session.role !== state.role || state.session.expiresAt !== data.expiresAt)) {
+        state.session.role = state.role; state.session.expiresAt = data.expiresAt || ''; sessionSave(state.session);
+      }
+      checkSessionClock();
       cacheSet(state.branches);
     } else if (CONFIG.SHEET_URL) {
       const data = await withBusy(loadFromSheet()); state.demo = false;
@@ -1500,9 +1529,33 @@ async function loadSrcItems(opts) {
 
 /* ---------- login ---------- */
 function sessionExpired() {
+  // in the middle of work → log in again on top of the current screen; on first load → normal login page
+  if (state.session && state.loaded && state.view !== 'login') return openRelogin();
+  if (/^#\/[a-z]/.test(location.hash) && !/^#\/login/.test(location.hash)) pendingRoute = location.hash;
   sessionSave(null); state.session = null; state.view = 'login';
-  toast('เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง'); render();
+  toast('ครบเวลาเข้าสู่ระบบแล้ว กรุณาเข้าสู่ระบบอีกครั้ง'); render();
 }
+/* ---------- login time limit (cd_app_settings.session_hours): warn 10 min before, then log in again in place ---------- */
+function openRelogin(early) {
+  if (!$('reloginModal').hidden) return;
+  $('rlLogin').value = state.username; $('rlPassword').value = ''; $('rlError').hidden = true;
+  $('reloginHint').textContent = early ? 'ต่อเวลาเข้าสู่ระบบ: ใส่รหัสผ่านอีกครั้ง · ข้อมูลบนหน้านี้ยังอยู่'
+    : 'ครบเวลาเข้าสู่ระบบแล้ว กรุณาใส่รหัสผ่านเพื่อทำงานต่อ · ข้อมูลที่เลือกหรือกรอกไว้บนหน้านี้ยังอยู่ (กดบันทึกอีกครั้งหลังเข้าสู่ระบบ)';
+  $('reloginModal').hidden = false; $('sessWarn').hidden = true;
+  setTimeout(() => $('rlPassword').focus(), 50);
+}
+function checkSessionClock() {
+  const exp = state.session && state.session.expiresAt ? new Date(state.session.expiresAt).getTime() : 0;
+  if (!HAS_BACKEND || !exp || state.view === 'login') { $('sessWarn').hidden = true; return; }
+  const left = exp - Date.now();
+  if (left <= 0) { $('sessWarn').hidden = true; return openRelogin(); }
+  if (left <= 10 * 60e3 && $('reloginModal').hidden) {
+    $('sessWarnText').textContent = `⏰ จะต้องเข้าสู่ระบบใหม่ในอีก ${Math.max(1, Math.ceil(left / 60e3))} นาที — บันทึกงานที่ทำค้างไว้ก่อน หรือ`;
+    $('sessWarn').hidden = false;
+  } else $('sessWarn').hidden = true;
+}
+setInterval(checkSessionClock, 20e3);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkSessionClock(); });   // phone woke up
 async function doSignIn(login, password) {
   const data = await callScriptPost({ action: 'signIn', login, password });
   afterAuth(data);
@@ -1513,7 +1566,7 @@ async function doSignUp(f) {
   toast('สมัครสมาชิกเรียบร้อย ยินดีต้อนรับ ' + data.username);
 }
 function afterAuth(data) {
-  state.session = { token: data.session, username: data.username, role: data.role || 'staff' };
+  state.session = { token: data.session, username: data.username, role: data.role || 'staff', expiresAt: data.expiresAt || '' };
   state.username = data.username; state.role = state.session.role; sessionSave(state.session);
   ['siPassword', 'suPassword', 'suPassword2', 'suInvite'].forEach(id => { $(id).value = ''; });
   state.view = 'branch'; state.loaded = false; render();
@@ -3098,6 +3151,22 @@ $('rpTrend').addEventListener('keydown', e => {
 let rpResizeT = null;
 window.addEventListener('resize', () => { clearTimeout(rpResizeT); rpResizeT = setTimeout(() => { if (state.view === 'report' && rp.data) { rpHideTip(); rpDrawLine(); } }, 150); });
 window.addEventListener('scroll', rpHideTip, { passive: true });
+
+/* log in again (time limit) */
+$('sessWarnBtn').addEventListener('click', () => openRelogin(true));
+$('rlSignOut').addEventListener('click', () => { closeModal('reloginModal'); doSignOut(); });
+$('reloginForm').addEventListener('submit', async e => {
+  e.preventDefault(); $('rlError').hidden = true;
+  const btn = e.target.querySelector('button[type=submit]'); btn.disabled = true;
+  try {
+    const d = await callScriptPost({ action: 'signIn', login: state.username, password: $('rlPassword').value });
+    state.session = { token: d.session, username: d.username, role: d.role || 'staff', expiresAt: d.expiresAt || '' };
+    state.role = state.session.role; sessionSave(state.session);
+    closeModal('reloginModal'); checkSessionClock(); render();
+    toast('เข้าสู่ระบบแล้ว ทำรายการต่อได้เลย');
+  } catch (err) { authError('rlError', err.message || err); }
+  finally { btn.disabled = false; }
+});
 
 /* login */
 $('tabSignIn').addEventListener('click', () => showAuthTab('signin'));
