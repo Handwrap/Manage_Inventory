@@ -1433,7 +1433,7 @@ const RPC = {
   stockAll:      p => ['get_stock_all', {}],
   setMin:        b => ['set_min_qty', { p_branch: b.branch, p_lines: b.lines }],
   materials:     p => ['get_materials', {}],
-  saveMaterial:  b => ['save_material', { p_item_no: b.itemNo || '', p_type: b.type, p_name: b.name, p_unit: b.unit, p_branches: b.branches }],
+  saveMaterial:  b => ['save_material', { p_item_no: b.itemNo || '', p_type: b.type, p_name: b.name, p_unit: b.unit, p_add: b.add, p_remove: b.remove }],
   deleteMaterial: b => ['delete_material', { p_item_no: b.itemNo }],
   users:         p => ['get_users', {}],
   submitCount:   b => ['submit_count', { p_branch: b.branch, p_lines: b.lines }],
@@ -2258,12 +2258,15 @@ function openMatForm(itemNo) {
   $('mfTitle').textContent = x ? 'แก้ไขสินค้า ' + x.itemNo : 'เพิ่มสินค้าใหม่';
   $('mfName').value = x ? x.itemName : ''; $('mfUnit').value = x ? x.unit : '';
   $('mfUnits').innerHTML = [...new Set(mat.items.map(i => i.unit).filter(Boolean).concat(['g', 'kg', 'ml', 'l', 'pcs', 'แพ็ค']))].map(u => `<option value="${escapeHTML(u)}">`).join('');
-  const have = {}; (x ? x.branches : []).forEach(b => { have[b.branch.toLowerCase()] = b; });
-  $('mfBranches').innerHTML = state.branches.map(b => {
-    const h = have[b.toLowerCase()], locked = h && Number(h.qty) !== 0;
-    return `<label class="${locked ? 'locked' : ''}" title="${locked ? 'คงเหลือไม่เป็น 0 — เอาสาขานี้ออกไม่ได้' : ''}"><input type="checkbox" value="${escapeHTML(b)}" ${h ? 'checked' : ''} ${locked ? 'disabled' : ''}>` +
-      `${escapeHTML(b)}${h ? `<span class="n">คงเหลือ ${fmtN(h.qty)}</span>` : ''}</label>`;
-  }).join('');
+  const cur = x ? x.branches : [];                                   // where the item is stocked right now
+  mat.orig = cur.map(b => b.branch);
+  const listed = (state.allBranches || state.branches);
+  const chip = (name, h, extra) => { const locked = h && Number(h.qty) !== 0;
+    return `<label class="${locked || extra ? 'locked' : ''}" title="${locked ? 'คงเหลือไม่เป็น 0 — เอาสาขานี้ออกไม่ได้' : extra || ''}"><input type="checkbox" value="${escapeHTML(name)}" ${h ? 'checked' : ''} ${locked || extra ? 'disabled' : ''}>` +
+      `${escapeHTML(name)}${h ? `<span class="n">คงเหลือ ${fmtN(h.qty)}</span>` : ''}</label>`; };
+  $('mfBranches').innerHTML = listed.map(b => chip(b, cur.find(c => same(c.branch, b)))).join('') +
+    // stock rows for a branch name that isn't in the branch list: shown, never touched by this form
+    cur.filter(c => !listed.some(b => same(b, c.branch))).map(c => chip(c.branch, c, 'ไม่อยู่ในรายชื่อสาขา — แบบฟอร์มนี้จะไม่แก้ไขรายการนี้')).join('');
   $('mfError').hidden = true; $('mfSave').disabled = false; $('mfSave').textContent = 'บันทึก';
   renderMatForm(); $('matModal').hidden = false; setTimeout(() => $('mfName').focus(), 50);
 }
@@ -2274,9 +2277,14 @@ function renderMatForm() {
 }
 async function saveMatForm() {
   if (mat.saving) return;
-  const branches = [...$('mfBranches').querySelectorAll('input:checked')].map(i => i.value);
-  const f = { itemNo: mat.edit, type: mat.type, name: $('mfName').value.trim(), unit: $('mfUnit').value.trim(), branches };
-  const e = !f.name ? 'กรุณาระบุชื่อสินค้า' : !f.unit ? 'กรุณาระบุหน่วยนับ' : !branches.length ? 'เลือกอย่างน้อย 1 สาขา' : '';
+  // send only what changed: branches newly ticked (add) and branches the manager unticked (remove)
+  const boxes = [...$('mfBranches').querySelectorAll('input:not(:disabled)')];
+  const orig = mat.edit ? (mat.orig || []) : [];
+  const add = boxes.filter(i => i.checked && !orig.some(o => same(o, i.value))).map(i => i.value);
+  const remove = boxes.filter(i => !i.checked && orig.some(o => same(o, i.value))).map(i => i.value);
+  const f = { itemNo: mat.edit, type: mat.type, name: $('mfName').value.trim(), unit: $('mfUnit').value.trim(), add, remove };
+  const ticked = $('mfBranches').querySelectorAll('input:checked').length;
+  const e = !f.name ? 'กรุณาระบุชื่อสินค้า' : !f.unit ? 'กรุณาระบุหน่วยนับ' : !ticked ? 'เลือกอย่างน้อย 1 สาขา' : '';
   if (e) return authError('mfError', e);
   mat.saving = true; $('mfSave').disabled = true; $('mfSave').textContent = 'กำลังบันทึก…';
   try {
