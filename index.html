@@ -90,7 +90,7 @@
   .sess-warn { position: fixed; top: 0; left: 0; right: 0; z-index: 80; background: var(--low-bg); color: var(--low-ink); border-bottom: 1px solid var(--border);
     padding: 8px 16px; text-align: center; font-size: 13.5px; }
   #reloginModal { z-index: 95; }
-  .mf input[type=password] { font-size: 16px; }
+  .mf input[type=password] { font-size: 16px; width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border); font-family: inherit; background: var(--surface); color: var(--text); }
   .ucard { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); padding: 12px 14px; margin-bottom: 10px; }
   .ucard.changed { outline: 2px solid var(--accent); outline-offset: -1px; }
   .ucard.inactive { opacity: .65; }
@@ -384,7 +384,7 @@
       <button class="btn" id="openMaterials0" type="button" style="margin-top:8px">&#128230; ข้อมูลวัตถุดิบ (เพิ่ม / แก้ไข / ลบ)</button>
       <button class="btn" id="openUsers0" type="button" style="margin-top:8px">&#128101; ผู้ใช้และสาขา (สิทธิ์การใช้งาน)</button>
     </div>
-    <div class="userline" id="userline0" hidden>เข้าสู่ระบบในชื่อ <strong class="js-username"></strong> · <button class="link-btn js-logout" type="button">ออกจากระบบ</button></div>
+    <div class="userline" id="userline0" hidden>เข้าสู่ระบบในชื่อ <strong class="js-username"></strong> · <button class="link-btn" id="changePw0" type="button">เปลี่ยนรหัสผ่าน</button> · <button class="link-btn js-logout" type="button">ออกจากระบบ</button></div>
   </section>
 
   <!-- STEP 2: dashboard -->
@@ -392,7 +392,7 @@
     <header class="top">
       <div>
         <h1>ตรวจสอบสต๊อกสินค้า</h1>
-        <div class="sub">สาขา: <strong id="branchName0"></strong><span class="js-userwrap" hidden> &middot; ผู้ใช้: <strong class="js-username"></strong></span></div>
+        <div class="sub">สาขา: <strong id="branchName0"></strong><span class="js-userwrap" hidden> &middot; ผู้ใช้: <strong class="js-username"></strong> &middot; <button class="link-btn js-changepw" type="button">เปลี่ยนรหัสผ่าน</button></span></div>
       </div>
       <div class="head-actions">
         <button class="btn" id="changeBranch0" type="button">&#8592; เปลี่ยนสาขา</button>
@@ -1090,6 +1090,27 @@
   </div>
 </div>
 
+<!-- Change password -->
+<div class="modal-overlay" id="pwModal" hidden>
+  <div class="modal mf" style="max-width:420px">
+    <h3>&#128273; เปลี่ยนรหัสผ่าน</h3>
+    <p class="hint">เครื่องอื่นที่เข้าสู่ระบบด้วยชื่อนี้จะถูกออกจากระบบ · ลืมรหัสผ่าน? ติดต่อผู้จัดการ</p>
+    <form id="pwForm" novalidate>
+      <label class="lbl" for="pwOld">รหัสผ่านเดิม</label>
+      <input type="password" id="pwOld" autocomplete="current-password">
+      <label class="lbl" for="pwNew">รหัสผ่านใหม่</label>
+      <input type="password" id="pwNew" autocomplete="new-password" placeholder="อย่างน้อย 6 ตัวอักษร">
+      <label class="lbl" for="pwNew2">ยืนยันรหัสผ่านใหม่</label>
+      <input type="password" id="pwNew2" autocomplete="new-password">
+      <div class="auth-error" id="pwError" hidden style="margin-top:10px"></div>
+      <div class="modal-actions">
+        <button class="btn" id="pwCancel" type="button">ยกเลิก</button>
+        <button class="btn primary" type="submit">บันทึกรหัสผ่านใหม่</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Material add / edit -->
 <div class="modal-overlay" id="matModal" hidden>
   <div class="modal mf">
@@ -1418,6 +1439,7 @@ const RPC = {
   signUp:        b => ['sign_up',        { p_invite: b.invite, p_username: b.username, p_phone: b.phone, p_password: b.password }],
   signIn:        b => ['sign_in',        { p_login: b.login, p_password: b.password }],
   signOut:       b => ['sign_out',       {}],
+  changePw:      b => ['change_password', { p_old: b.oldPw, p_new: b.newPw }],
   branches:      p => ['get_branches',   {}],
   items:         p => ['get_items',      { p_branch: p.branch || '' }],
   pr:            p => ['get_pr',         { p_branch: p.branch || '', p_status: p.status || 'pending', p_source: p.source || '' }],
@@ -1605,6 +1627,8 @@ async function loadSTR(mode, opts) {
   } finally { state.strLoading = false; render(); }
 }
 // items of the branch the STR will be requested FROM (picked in the transfer screen)
+// STR only for items registered to THIS branch too (material master branch ticks)
+function strUsable() { const mine = new Set(branchItems1(state.items).map(x => x.itemNo)); return state.srcItems.filter(x => mine.has(x.itemNo)); }
 async function loadSrcItems(opts) {
   if (!HAS_BACKEND || !state.strSource) { state.srcItems = []; render(); return; }
   const src = state.strSource;
@@ -1763,7 +1787,7 @@ const FLOWS = {
   strReq: {
     sel: 'sel6', qty: 'qty6', bar: 'selectbar6', tbody: 'rows6',
     active: () => state.view === 'transfer' && state.transferTab === 'new',
-    lines: () => state.srcItems,
+    lines: () => strUsable(),
     defaultQty: () => 1,
     check: (x, q) => q > 0 ? '' : 'จำนวนที่ขอโอนต้องมากกว่า 0',
     barBtn: ['primary', 'ตรวจสอบและส่งใบขอโอน'],
@@ -2208,8 +2232,7 @@ function renderUsers() {
     return `<div class="ucard${usrChanged(u) ? ' changed' : ''}${c.active ? '' : ' inactive'}" data-u="${u.id}">
       <div class="top"><div class="nm">${escapeHTML(u.username)}${me ? ' (คุณ)' : ''}<small>${escapeHTML(u.phone || '')}</small></div>
         <select data-role="${u.id}" ${me ? 'disabled title="เปลี่ยนสิทธิ์ของตัวเองไม่ได้"' : ''}><option value="staff" ${c.role === 'staff' ? 'selected' : ''}>พนักงาน</option><option value="manager" ${mgr ? 'selected' : ''}>ผู้จัดการ</option></select>
-        <label class="count" style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-active="${u.id}" ${c.active ? 'checked' : ''} ${me ? 'disabled' : ''}> ใช้งานได้</label></div>
-      <div class="brs">${chips}</div><div class="note">${note}</div>
+        <label class="count" style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-active="${u.id}" ${c.active ? 'checked' : ''} ${me ? 'disabled' : ''}> ใช้งานได้</label></div>      <div class="brs">${chips}</div><div class="note">${note}</div>
       <div class="acts" ${usrChanged(u) ? '' : 'hidden'}><button class="btn" type="button" data-undo="${u.id}">ยกเลิก</button>
         <button class="btn primary" type="button" data-save="${u.id}" ${usr.saving[u.id] ? 'disabled' : ''}>${usr.saving[u.id] ? 'กำลังบันทึก…' : 'บันทึก'}</button></div></div>`;
   }).join('');
@@ -2416,6 +2439,12 @@ function renderUser() {
   $('userline0').hidden = !on;
   $('reportEntry0').hidden = !isManager();
 }
+/* ---------- change password ---------- */
+function openChangePw() {
+  ['pwOld', 'pwNew', 'pwNew2'].forEach(id => { $(id).value = ''; }); $('pwError').hidden = true;
+  $('pwModal').hidden = false;
+  setTimeout(() => $('pwOld').focus(), 50);
+}
 
 /* ---------- rendering: inventory (view only) ---------- */
 function renderCards(all) {
@@ -2598,12 +2627,13 @@ function renderTransfer() {
     srcSel.innerHTML = '<option value="">เลือกสาขาต้นทาง…</option>' + others.map(b => `<option value="${escapeHTML(b)}">${escapeHTML(b)}</option>`).join('');
     srcSel.value = others.find(b => same(b, state.strSource)) || '';
     $('updated6').textContent = !state.strSource ? '' : state.srcLoading ? 'กำลังโหลด…' : 'อัปเดตล่าสุด ' + (state.lastUpdated6 || 'เมื่อสักครู่');
-    const loading = state.srcLoading;
+    const loading = state.srcLoading || (state.itemsLoading && !branchItems1(state.items).length);
     const q = state.q6.trim().toLowerCase();
-    const list = loading ? [] : state.srcItems.filter(x => !q || x.itemNo.toLowerCase().includes(q) || x.itemName.toLowerCase().includes(q));
+    const usable = strUsable();
+    const list = loading ? [] : usable.filter(x => !q || x.itemNo.toLowerCase().includes(q) || x.itemName.toLowerCase().includes(q));
     const mine = {}; branchItems1(state.items).forEach(x => { mine[x.itemNo] = x.qty; });
     const { errors } = flowPicked('strReq');
-    $('count6').textContent = loading || !state.strSource ? '' : list.length + ' จาก ' + state.srcItems.length + ' รายการ';
+    $('count6').textContent = loading || !state.strSource ? '' : list.length + ' จาก ' + usable.length + ' รายการ';
     const tbody = $('rows6'); tbody.innerHTML = '';
     list.forEach(x => {
       const tr = document.createElement('tr');
@@ -2614,7 +2644,7 @@ function renderTransfer() {
       tbody.appendChild(tr);
     });
     const empty = $('empty6'); empty.hidden = list.length > 0;
-    if (!list.length) empty.textContent = !state.strSource ? 'เลือกสาขาที่ต้องการขอโอนสินค้าด้านบน' : loading ? 'กำลังโหลดรายการสินค้าของสาขา ' + state.strSource + '…' : state.srcItems.length ? 'ไม่พบรายการที่ตรงกับการค้นหา' : 'สาขา ' + state.strSource + ' ยังไม่มีรายการสินค้า';
+    if (!list.length) empty.textContent = !state.strSource ? 'เลือกสาขาที่ต้องการขอโอนสินค้าด้านบน' : loading ? 'กำลังโหลดรายการสินค้าของสาขา ' + state.strSource + '…' : usable.length ? 'ไม่พบรายการที่ตรงกับการค้นหา' : state.srcItems.length ? 'สาขา ' + state.strSource + ' ไม่มีสินค้าที่ลงทะเบียนกับสาขา ' + state.branch + ' (เพิ่มสาขาได้ที่หน้า "ข้อมูลสินค้า")' : 'สาขา ' + state.strSource + ' ยังไม่มีรายการสินค้า';
   } else {
     $('updated6').textContent = state.strLoading ? 'กำลังโหลด…' : 'อัปเดตล่าสุด ' + (state.lastUpdated6h || 'เมื่อสักครู่');
     const list = state.strHistory.filter(x => same(x.toBranch, state.branch));
@@ -3416,6 +3446,24 @@ $('reloginForm').addEventListener('submit', async e => {
     closeModal('reloginModal'); checkSessionClock(); render();
     toast('เข้าสู่ระบบแล้ว ทำรายการต่อได้เลย');
   } catch (err) { authError('rlError', err.message || err); }
+  finally { btn.disabled = false; }
+});
+
+$('changePw0').addEventListener('click', () => openChangePw());
+document.querySelectorAll('.js-changepw').forEach(el => el.addEventListener('click', openChangePw));
+/* change password */
+$('pwCancel').addEventListener('click', () => closeModal('pwModal'));
+$('pwForm').addEventListener('submit', async e => {
+  e.preventDefault(); $('pwError').hidden = true;
+  const oldPw = $('pwOld').value, newPw = $('pwNew').value;
+  if (!oldPw) return authError('pwError', 'กรุณากรอกรหัสผ่านเดิม');
+  if (newPw.length < 6) return authError('pwError', 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร');
+  if (newPw !== $('pwNew2').value) return authError('pwError', 'รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน');
+  const btn = e.target.querySelector('button[type=submit]'); btn.disabled = true;
+  try {
+    await callScriptPost({ action: 'changePw', oldPw, newPw });
+    closeModal('pwModal'); toast('เปลี่ยนรหัสผ่านแล้ว (เครื่องอื่นที่เข้าสู่ระบบด้วยชื่อนี้ถูกออกจากระบบ)');
+  } catch (err) { authError('pwError', err.message || err); }
   finally { btn.disabled = false; }
 });
 
