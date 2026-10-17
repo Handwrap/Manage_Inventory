@@ -418,14 +418,14 @@
       </button>
       <button class="tile" type="button" data-goto="issue">
         <div class="icon">&#128228;</div>
-        <div class="t">เบิกสินค้า</div>
-        <div class="d">เลือกสินค้าที่มีอยู่ในสาขานี้ และระบุจำนวนที่ต้องการเบิกออกจากสต๊อก</div>
+        <div class="t">จ่ายสินค้าออก</div>
+        <div class="d">เลือกสินค้าที่มีอยู่ในสาขานี้ และระบุจำนวนที่ต้องการจ่ายออกจากสต๊อก</div>
         <div class="n">เปิด &rarr;</div>
       </button>
       <button class="tile" type="button" data-goto="count" id="tileCount" hidden>
         <div class="icon">&#128203;</div>
         <div class="t">นับสต๊อก (หลังปิดร้าน)</div>
-        <div class="d">นับของที่เหลือจริงตอนปิดร้าน ระบบคำนวณยอดใช้ให้เอง ไม่ต้องบันทึกเบิกทุกครั้ง</div>
+        <div class="d">นับของที่เหลือจริงตอนปิดร้าน ระบบคำนวณยอดใช้ให้เอง ไม่ต้องบันทึกจ่ายออกทุกครั้ง</div>
         <div class="n">เปิด &rarr;</div>
       </button>
       <button class="tile" type="button" data-goto="inventory">
@@ -664,7 +664,7 @@
     <header class="top">
       <div>
         <h2 class="pagetitle">รายงานการใช้สินค้า</h2>
-        <div class="sub">การใช้ = เบิกสินค้า (GI) + ส่วนต่างจากการนับสต๊อก (CNT) ทุกสาขา · <strong>ไม่รวม</strong>การโอนระหว่างสาขา (STR) · ก่อน 06:00 นับเป็นวันก่อนหน้า</div>
+        <div class="sub">การใช้ = จ่ายสินค้าออก (GI) + ส่วนต่างจากการนับสต๊อก (CNT) ทุกสาขา · <strong>ไม่รวม</strong>การโอนระหว่างสาขา (STR) · ก่อน 06:00 นับเป็นวันก่อนหน้า</div>
       </div>
       <div class="head-actions">
         <button class="btn" id="toDash10" type="button">&#8592; ย้อนกลับ</button>
@@ -703,13 +703,13 @@
         </table></div>
       </div>
       <div class="rp-card">
-        <h3>รายการเบิกล่าสุด</h3>
+        <h3>รายการจ่ายออกล่าสุด</h3>
         <div class="cap" id="rpDetailCap"></div>
         <div class="scroll"><table>
-          <thead><tr><th>วันที่</th><th>สาขา</th><th>เลขที่</th><th class="num">จำนวน</th><th>เหตุผล</th><th class="hide-sm">ผู้เบิก</th></tr></thead>
+          <thead><tr><th>วันที่</th><th>สาขา</th><th>เลขที่</th><th class="num">จำนวน</th><th>เหตุผล</th><th class="hide-sm">ผู้จ่ายออก</th></tr></thead>
           <tbody id="rpDetailRows"></tbody>
         </table></div>
-        <div class="empty" id="rpDetailEmpty" hidden>ไม่มีการเบิกสินค้านี้ในช่วงเวลาที่เลือก</div>
+        <div class="empty" id="rpDetailEmpty" hidden>ไม่มีการจ่ายสินค้านี้ออกในช่วงเวลาที่เลือก</div>
       </div>
     </div>
   </section>
@@ -919,7 +919,7 @@
   <section id="view-issue" hidden>
     <header class="top">
       <div>
-        <h2 class="pagetitle">เบิกสินค้า</h2>
+        <h2 class="pagetitle">จ่ายสินค้าออก</h2>
         <div class="sub">สาขา: <strong id="branchName5"></strong> &middot; <span id="updated5"></span></div>
       </div>
       <div class="head-actions">
@@ -933,13 +933,13 @@
       <div class="tiles two">
         <button class="tile" type="button" data-issue-mode="general">
           <div class="icon">&#128228;</div>
-          <div class="t">เบิกสินค้าทั่วไป</div>
-          <div class="d">เลือกสินค้าที่มีอยู่ในสาขานี้ ระบุจำนวนและเหตุผลในการเบิก</div>
+          <div class="t">จ่ายออกทั่วไป</div>
+          <div class="d">เลือกสินค้าที่มีอยู่ในสาขานี้ ระบุจำนวนและเหตุผลในการจ่ายออก</div>
           <div class="n">เลือก &rarr;</div>
         </button>
         <button class="tile" type="button" data-issue-mode="str">
           <div class="icon">&#128666;</div>
-          <div class="t">จ่ายสินค้าตามใบขอโอน (STR)</div>
+          <div class="t">จ่ายตามใบขอโอน (STR)</div>
           <div class="d">จ่ายสินค้าให้สาขาอื่นที่ขอโอนจากสาขานี้ เลือกได้หลายรายการ/หลายใบพร้อมกัน</div>
           <div class="n" id="strPendingBadge">เลือก &rarr;</div>
         </button>
@@ -949,7 +949,7 @@
     <!-- 3d-1: general goods issue -->
     <div id="issueGeneral" hidden>
       <div class="toolbar">
-        <button class="link-btn" id="backToIssueChoice1" type="button" hidden>&#8592; เปลี่ยนประเภทการเบิก</button>
+        <button class="link-btn" id="backToIssueChoice1" type="button" hidden>&#8592; เปลี่ยนประเภทการจ่ายออก</button>
       </div>
       <div class="toolbar">
         <label class="search"><input id="q5" type="search" placeholder="ค้นหาด้วยรหัสสินค้าหรือชื่อสินค้า" autocomplete="off" aria-label="ค้นหาสินค้า"></label>
@@ -965,7 +965,7 @@
                 <th data-key="itemName" aria-sort="none"><button type="button">ชื่อสินค้า <span class="arrow">&#9650;</span></button></th>
                 <th class="hide-sm">หน่วยนับ</th>
                 <th data-key="qty" class="num" aria-sort="none"><button type="button">จำนวนคงเหลือ <span class="arrow">&#9650;</span></button></th>
-                <th class="num">จำนวนที่ต้องการเบิก</th>
+                <th class="num">จำนวนที่จ่ายออก</th>
               </tr>
             </thead>
             <tbody id="rows5"></tbody>
@@ -978,7 +978,7 @@
     <!-- 3d-2: issue against stock transfer requests other branches sent to this one (multi-line) -->
     <div id="issueSTR" hidden>
       <div class="toolbar">
-        <button class="link-btn" id="backToIssueChoice2" type="button">&#8592; เปลี่ยนประเภทการเบิก</button>
+        <button class="link-btn" id="backToIssueChoice2" type="button">&#8592; เปลี่ยนประเภทการจ่ายออก</button>
       </div>
       <div class="toolbar">
         <span class="field-hint" style="margin:0;flex:1">ใบจัดของจะพิมพ์อัตโนมัติเมื่อมีคำขอเข้ามา (ถ้าตั้งเครื่องพิมพ์ทางอีเมลไว้) · พิมพ์เองได้จากปุ่มนี้</span>
@@ -1164,20 +1164,20 @@
 <!-- Goods issue confirmation modal (multi item, requires a reason) -->
 <div class="modal-overlay" id="issueModal" hidden>
   <div class="modal">
-    <h3>ยืนยันการเบิกสินค้า</h3>
+    <h3>ยืนยันการจ่ายสินค้าออก</h3>
     <p class="hint">กรุณาตรวจสอบก่อนบันทึก ข้อมูลนี้จะถูกบันทึกลงชีต Goods_Movement (ประเภท GI) และหักออกจากจำนวนคงเหลือทันที</p>
     <div class="scroll">
       <table>
-        <thead><tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th>หน่วยนับ</th><th class="num">จำนวนที่เบิก</th></tr></thead>
+        <thead><tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th>หน่วยนับ</th><th class="num">จำนวนที่จ่ายออก</th></tr></thead>
         <tbody id="issueModalRows"></tbody>
       </table>
     </div>
-    <label class="field-label" for="issueReason">เหตุผลในการเบิก <span style="color:var(--out-ink)">*</span></label>
+    <label class="field-label" for="issueReason">เหตุผลในการจ่ายออก <span style="color:var(--out-ink)">*</span></label>
     <input class="reason-input" id="issueReason" type="text" placeholder="เช่น ใช้ในการซ่อมบำรุง, สินค้าชำรุด, โอนย้ายสาขา" maxlength="200">
     <div class="field-hint" id="issueReasonHint" hidden style="color:var(--out-ink)">กรุณาระบุเหตุผลก่อนยืนยัน</div>
     <div class="modal-actions">
       <button class="btn" id="issueCancel" type="button">ยกเลิก</button>
-      <button class="btn danger" id="issueConfirm" type="button">ยืนยันการเบิกสินค้า</button>
+      <button class="btn danger" id="issueConfirm" type="button">ยืนยันการจ่ายสินค้าออก</button>
     </div>
   </div>
 </div>
@@ -1202,11 +1202,11 @@
 <!-- Goods issue success popup -->
 <div class="modal-overlay" id="issueSuccessModal" hidden>
   <div class="modal">
-    <h3>&#9989; บันทึกการเบิกสินค้าเรียบร้อยแล้ว</h3>
+    <h3>&#9989; บันทึกการจ่ายสินค้าออกเรียบร้อยแล้ว</h3>
     <p class="hint" id="issueSuccessHint"></p>
     <div class="scroll">
       <table>
-        <thead><tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th>หน่วยนับ</th><th class="num">จำนวนที่เบิก</th></tr></thead>
+        <thead><tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th>หน่วยนับ</th><th class="num">จำนวนที่จ่ายออก</th></tr></thead>
         <tbody id="issueSuccessRows"></tbody>
       </table>
     </div>
@@ -1507,7 +1507,7 @@ async function loadBranches(fresh) {
     } else if (CONFIG.SHEET_URL) {
       const data = await withBusy(loadFromSheet()); state.demo = false;
       state.items = data.items; state.branches = uniq(data.branches);
-      banner('โหมดอ่านอย่างเดียว: ใส่ <code>SUPABASE_URL</code> และ <code>SUPABASE_KEY</code> เพื่อใช้เมนูขอซื้อสินค้า รับสินค้า และเบิกสินค้า');
+      banner('โหมดอ่านอย่างเดียว: ใส่ <code>SUPABASE_URL</code> และ <code>SUPABASE_KEY</code> เพื่อใช้เมนูขอซื้อสินค้า รับสินค้า และจ่ายสินค้าออก');
     } else {
       state.items = JSON.parse(JSON.stringify(DEMO_ITEMS)); state.branches = DEMO_BRANCHES.slice(); state.demo = true;
       banner('กำลังแสดง <strong>ข้อมูลตัวอย่าง</strong> ใส่ <code>CONFIG.SUPABASE_URL</code> และ <code>CONFIG.SUPABASE_KEY</code> ที่ด้านบนของไฟล์นี้ เพื่อใช้กับชีตจริงของคุณ');
@@ -2032,7 +2032,7 @@ async function submitIssue() {
   finally { state.submitting5 = false; render(); }
 }
 function openIssueSuccessModal(prId, reason, items) {
-  $('issueSuccessHint').innerHTML = `บันทึกการเบิกสินค้าเลขที่ <strong>${escapeHTML(prId)}</strong> และหักออกจากจำนวนคงเหลือของสาขา ${escapeHTML(state.branch)} เรียบร้อยแล้ว<br>เหตุผล: ${escapeHTML(reason)}`;
+  $('issueSuccessHint').innerHTML = `บันทึกการจ่ายสินค้าออกเลขที่ <strong>${escapeHTML(prId)}</strong> และหักออกจากจำนวนคงเหลือของสาขา ${escapeHTML(state.branch)} เรียบร้อยแล้ว<br>เหตุผล: ${escapeHTML(reason)}`;
   $('issueSuccessRows').innerHTML = items.map(it => `<tr><td>${escapeHTML(it.itemNo)}</td><td>${escapeHTML(it.itemName)}</td><td>${escapeHTML(it.unit || '')}</td><td class="num">-${escapeHTML(String(it.issueQty))}</td></tr>`).join('');
   $('issueSuccessModal').hidden = false;
 }
@@ -2115,7 +2115,7 @@ function buildPickingListHtml_(doc, fmtDate) {
     '<tr><td>จัดของจากสาขา <b>' + esc(doc.fromBranch) + '</b> &nbsp;→&nbsp; ส่งให้สาขา <b>' + esc(doc.toBranch) + '</b></td><td style="text-align:right">ผู้ขอ ' + esc(doc.createdBy) + '</td></tr></table>' +
     '<table class="items"><thead><tr><th>#</th><th>รหัส</th><th>รายการ</th><th>หน่วย</th><th>จำนวนที่ขอ</th><th>ส่งจริง</th><th>หมายเหตุ</th></tr></thead><tbody>' + rows + '</tbody></table>' +
     '<div class="note"><b>' + esc(doc.strId) + '</b> · ' + esc(doc.fromBranch) + ' → ' + esc(doc.toBranch) + ' · รวม ' + doc.lines.length + ' รายการ<br>เขียนจำนวนที่ส่งจริงในช่อง &ldquo;ส่งจริง&rdquo; (ส่งน้อยกว่าที่ขอได้ / ไม่มีของให้ใส่ 0) แล้วบันทึกในแอป: ' +
-    '<b>เบิกสินค้า → จ่ายสินค้าตามใบขอโอน</b> · ส่งใบนี้ไปพร้อมสินค้าเพื่อให้สาขาผู้ขอตรวจรับ</div>' +
+    '<b>จ่ายสินค้าออก → จ่ายตามใบขอโอน</b> · ส่งใบนี้ไปพร้อมสินค้าเพื่อให้สาขาผู้ขอตรวจรับ</div>' +
     '<table class="sign"><tr><td>____________________<br>ผู้จัดของ</td><td>____________________<br>ผู้ส่ง</td><td>____________________<br>ผู้รับ (สาขา ' + esc(doc.toBranch) + ')</td></tr></table>' +
     '</body></html>';
 }
@@ -2446,7 +2446,7 @@ function renderInventory() {
   if (!list.length) empty.textContent = loading ? 'กำลังโหลดรายการสินค้า…' : all.length ? 'ไม่พบรายการที่ตรงกับการค้นหาหรือตัวกรอง' : 'ไม่พบรายการสินค้าสำหรับสาขานี้';
   applySort(document.querySelector('#view-inventory thead'), state.sort1);
   $('invBanner').innerHTML = isManager()
-    ? 'จำนวนคงเหลือเปลี่ยนได้ผ่าน &ldquo;รับสินค้า&rdquo; / &ldquo;เบิกสินค้า&rdquo; เท่านั้น · <strong>ผู้จัดการ</strong>แก้ &ldquo;ขั้นต่ำ&rdquo; ได้ในตาราง (เว้นว่าง = ค่าเริ่มต้น ' + CONFIG.LOW_STOCK_THRESHOLD + ') แล้วกดบันทึกด้านล่าง'
+    ? 'จำนวนคงเหลือเปลี่ยนได้ผ่าน &ldquo;รับสินค้า&rdquo; / &ldquo;จ่ายสินค้าออก&rdquo; เท่านั้น · <strong>ผู้จัดการ</strong>แก้ &ldquo;ขั้นต่ำ&rdquo; ได้ในตาราง (เว้นว่าง = ค่าเริ่มต้น ' + CONFIG.LOW_STOCK_THRESHOLD + ') แล้วกดบันทึกด้านล่าง'
     : 'หน้านี้สำหรับ <strong>ตรวจสอบสต๊อกเท่านั้น</strong> · &ldquo;ขั้นต่ำ&rdquo; คือจุดที่ถือว่าใกล้หมด (ตั้งโดยผู้จัดการ; สีเทา = ค่าเริ่มต้น)';
   renderMinBar();
 }
@@ -2737,15 +2737,15 @@ function renderSelectBar5() {
   if (!show) { if (bar) bar.remove(); return; }
   if (!bar) {
     bar = document.createElement('div'); bar.className = 'selectbar'; bar.id = 'selectbar5';
-    bar.innerHTML = `<div class="inner"><div class="msg"></div><button class="btn danger" id="issueReview" type="button">ตรวจสอบและเบิกสินค้า</button></div>`;
+    bar.innerHTML = `<div class="inner"><div class="msg"></div><button class="btn danger" id="issueReview" type="button">ตรวจสอบและจ่ายสินค้าออก</button></div>`;
     document.body.appendChild(bar);
     bar.querySelector('#issueReview').addEventListener('click', openIssueModal);
   }
   const over = items.find(x => Number(state.qtyDraft5[x.row]) > x.qty);
   const bad = items.find(x => !(Number(state.qtyDraft5[x.row]) > 0));
   bar.querySelector('.msg').innerHTML = `เลือกแล้ว <strong>${items.length}</strong> รายการ` +
-    (over ? ` — <span style="color:var(--out-ink)">${escapeHTML(over.itemNo)} เบิกเกินจำนวนคงเหลือ (คงเหลือ ${over.qty.toLocaleString()})</span>`
-      : bad ? ' — จำนวนที่เบิกต้องมากกว่า 0' : '');
+    (over ? ` — <span style="color:var(--out-ink)">${escapeHTML(over.itemNo)} จ่ายออกเกินจำนวนคงเหลือ (คงเหลือ ${over.qty.toLocaleString()})</span>`
+      : bad ? ' — จำนวนที่จ่ายออกต้องมากกว่า 0' : '');
   bar.querySelector('#issueReview').disabled = valid.length === 0 || valid.length !== items.length;
 }
 function openIssueModal() {
