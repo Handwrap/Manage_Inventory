@@ -1237,6 +1237,9 @@ const CONFIG = {
   AUTO_REFRESH_SECONDS: 0    // 0 = off
 };
 /* ================================================================ */
+// tolerate copy/paste slips: spaces or line breaks around the URL/key, a trailing slash, or a pasted /rest/v1 path
+CONFIG.SUPABASE_URL = String(CONFIG.SUPABASE_URL || '').replace(/\s+/g, '').replace(/\/rest\/v1.*$/, '').replace(/\/+$/, '');
+CONFIG.SUPABASE_KEY = String(CONFIG.SUPABASE_KEY || '').replace(/\s+/g, '');
 const HAS_BACKEND = !!(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_KEY);
 
 const DEMO_BRANCHES = ['Siam', 'Silom', 'Chiang Mai'];
@@ -1458,7 +1461,8 @@ async function callSupabase(params, opts) {
     if (msg === 'SESSION_EXPIRED') { sessionExpired(); throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง'); }
     if (msg === 'BRANCH_NOT_ALLOWED') {           // assignment was changed while the page was open
       toast('คุณไม่มีสิทธิ์ทำรายการในสาขานี้ — เลือกสาขาที่ได้รับมอบหมาย');
-      state.branch = ''; state.view = 'branch'; state.loaded = false; render(); loadBranches(true);
+      if (state.branch) state.deniedBranch = state.branch;      // never auto-open this one again (prevents a redirect loop)
+      lsSet(''); state.branch = ''; state.view = 'branch'; state.loaded = false; render(); loadBranches(true);
       throw new Error('ไม่มีสิทธิ์ในสาขานี้');
     }
     if (msg === 'MANAGER_ONLY') {                 // role was changed to staff while the page was open
@@ -1519,7 +1523,9 @@ async function loadBranches(fresh) {
     }
     if (pendingRoute) setTimeout(() => applyRoute(pendingRoute), 0);
     if (HAS_BACKEND && state.view === 'branch' && !state.branch && state.branches.length === 1) {   // only one branch → straight in
-      state.branch = state.branches[0]; lsSet(state.branch); state.view = 'dashboard'; prefetchBranchData();
+      if (state.deniedBranch && same(state.deniedBranch, state.branches[0])) {
+        banner(`<strong>สาขา ${escapeHTML(state.branches[0])} ปฏิเสธสิทธิ์ของบัญชีนี้</strong> ชื่อสาขาหรือการกำหนดสาขาอาจไม่ตรงกัน กรุณาให้ผู้จัดการตรวจสอบที่ &ldquo;ผู้ใช้และสาขา&rdquo; แล้วกดรีเฟรช`, true);
+      } else { state.branch = state.branches[0]; lsSet(state.branch); state.view = 'dashboard'; prefetchBranchData(); }
     }
     if (!state.branches.length) banner(HAS_BACKEND && !isManager()
       ? '<strong>บัญชีนี้ยังไม่ได้กำหนดสาขา</strong> กรุณาติดต่อผู้จัดการให้กำหนดสาขาที่คุณทำงาน (เมนู &ldquo;ผู้ใช้และสาขา&rdquo;) แล้วกดรีเฟรช'
