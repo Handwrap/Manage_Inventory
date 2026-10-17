@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>ใบจัดสินค้า (แม่แบบ)</title>
+<!--
+  PICKING LIST TEMPLATE – used by BOTH the app's "พิมพ์ใบจัดของ" button and the auto-print emails (6-str-autoprint.gs).
+  Keep this file next to stock-check.html in your GitHub repo. Edit freely (wording, columns, logo, sizes) –
+  just keep the {{PLACEHOLDERS}} you still want and the two ROW markers.
+
+  Placeholders (replaced automatically):
+    {{STR_ID}}        e.g. STR0012              {{DATE}}          date/time the request was made
+    {{FROM}}          branch that picks & sends {{TO}}            branch that asked
+    {{REQUESTED_BY}}  who asked                 {{ITEM_COUNT}}    number of lines
+  Inside the ROW block (repeated once per item):
+    {{NO}} {{CODE}} {{NAME}} {{UNIT}} {{QTY}}
+
+  Tip: open this file in a browser to see the layout (placeholders show as-is).
+-->
+<style>
+  /* A4 portrait. Up to 17 items fit on one page with the signatures; longer lists: ~20 rows on page 1, ~23 on each next page. */
+  @page { size: A4; margin: 12mm 12mm 14mm; }
+  body { margin: 0; font-family: "Sarabun", "Noto Sans Thai", Tahoma, Arial, sans-serif; font-size: 12pt; color: #000; }
+  h1 { font-size: 18pt; margin: 0 0 1mm; }
+  .doc { font-size: 15pt; font-weight: bold; }
+  .meta { width: 100%; border-collapse: collapse; margin: 1mm 0 3mm; }
+  .meta td { padding: 1mm 0; font-size: 12pt; }
+  .meta b { font-size: 14pt; }
+  table.items { width: 100%; border-collapse: collapse; }
+  table.items th, table.items td { border: 1px solid #000; padding: 1.6mm 2mm; }
+  table.items th { background: #eee; font-size: 11pt; }
+  table.items thead { display: table-header-group; }          /* column headings repeat on every page */
+  table.items tr { page-break-inside: avoid; break-inside: avoid; }   /* never cut a row in half */
+  .cont { text-align: right; font-size: 9.5pt; font-weight: normal; background: #fff !important; border: 0 !important; padding: 0 0 1mm !important; }
+  .c { text-align: center; } .r { text-align: right; }
+  .blank { height: 7.5mm; width: 24mm; } .wide { width: 34mm; }
+  .end { page-break-inside: avoid; break-inside: avoid; }      /* note + signatures stay together */
+  .note { margin-top: 3mm; font-size: 10.5pt; }
+  .sign { width: 100%; margin-top: 6mm; border-collapse: collapse; }
+  .sign td { width: 33%; text-align: center; padding-top: 9mm; font-size: 11pt; }
+</style>
+</head>
+<body>
+  <h1>ใบจัดสินค้า (คำขอโอนระหว่างสาขา)</h1>
+  <table class="meta">
+    <tr><td>เลขที่ <span class="doc">{{STR_ID}}</span></td><td class="r">วันที่ขอ {{DATE}}</td></tr>
+    <tr><td>จัดของจากสาขา <b>{{FROM}}</b> &nbsp;→&nbsp; ส่งให้สาขา <b>{{TO}}</b></td><td class="r">ผู้ขอ {{REQUESTED_BY}}</td></tr>
+  </table>
+
+  <table class="items">
+    <thead><tr><th colspan="7" class="cont">{{STR_ID}} · {{FROM}} → {{TO}}</th></tr><tr><th>#</th><th>รหัส</th><th>รายการ</th><th>หน่วย</th><th>จำนวนที่ขอ</th><th>ส่งจริง</th><th>หมายเหตุ</th></tr></thead>
+    <tbody>
+      <!--ROW-->
+      <tr><td class="c">{{NO}}</td><td>{{CODE}}</td><td>{{NAME}}</td><td class="c">{{UNIT}}</td><td class="r">{{QTY}}</td><td class="blank"></td><td class="blank wide"></td></tr>
+      <!--/ROW-->
+    </tbody>
+  </table>
+
+  <div class="end">
+  <div class="note"><b>{{STR_ID}}</b> · {{FROM}} → {{TO}} · รวม {{ITEM_COUNT}} รายการ<br>เขียนจำนวนที่ส่งจริงในช่อง &ldquo;ส่งจริง&rdquo; (ส่งน้อยกว่าที่ขอได้ / ไม่มีของให้ใส่ 0) แล้วบันทึกในแอป:
+    <b>จ่ายสินค้าออก → จ่ายตามใบขอโอน</b> · ส่งใบนี้ไปพร้อมสินค้าเพื่อให้สาขาผู้ขอตรวจรับ</div>
+
+  <table class="sign"><tr>
+    <td>____________________<br>ผู้จัดของ</td>
+    <td>____________________<br>ผู้ส่ง</td>
+    <td>____________________<br>ผู้รับ (สาขา {{TO}})</td>
+  </tr></table>
+  </div>
+</body>
+</html>
