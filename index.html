@@ -91,6 +91,19 @@
     padding: 8px 16px; text-align: center; font-size: 13.5px; }
   #reloginModal { z-index: 95; }
   .mf input[type=password] { font-size: 16px; }
+  .ucard { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); padding: 12px 14px; margin-bottom: 10px; }
+  .ucard.changed { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .ucard.inactive { opacity: .65; }
+  .ucard .top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .ucard .nm { font-weight: 650; font-size: 15px; flex: 1; min-width: 140px; }
+  .ucard .nm small { display: block; font-weight: 400; color: var(--muted); font-size: 12.5px; }
+  .ucard select { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); font: inherit; font-size: 16px; background: var(--surface); }
+  .ucard .brs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .ucard .brs label { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 999px; padding: 4px 11px 4px 8px; font-size: 13.5px; }
+  .ucard .brs label.on { background: var(--ok-bg); border-color: transparent; }
+  .ucard .note { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+  .ucard .acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+  @media (max-width: 640px) { table.pick.nocb tbody tr { padding-left: 12px; } }
   .tools-h { font-size: 12.5px; font-weight: 600; color: var(--muted); margin-bottom: 8px; }
   .chip { display: inline-block; border: 1px solid var(--border); border-radius: 999px; padding: 1px 8px; font-size: 12px; margin: 1px 4px 1px 0; white-space: nowrap; }
   .chip .q { color: var(--muted); margin-left: 4px; font-variant-numeric: tabular-nums; }
@@ -369,6 +382,7 @@
       <div class="tools-h">เครื่องมือผู้จัดการ</div>
       <button class="btn" id="openReport0" type="button">&#128202; ดูรายงานการใช้สินค้า (ทุกสาขา)</button>
       <button class="btn" id="openMaterials0" type="button" style="margin-top:8px">&#128230; ข้อมูลวัตถุดิบ (เพิ่ม / แก้ไข / ลบ)</button>
+      <button class="btn" id="openUsers0" type="button" style="margin-top:8px">&#128101; ผู้ใช้และสาขา (สิทธิ์การใช้งาน)</button>
     </div>
     <div class="userline" id="userline0" hidden>เข้าสู่ระบบในชื่อ <strong class="js-username"></strong> · <button class="link-btn js-logout" type="button">ออกจากระบบ</button></div>
   </section>
@@ -406,6 +420,12 @@
         <div class="icon">&#128228;</div>
         <div class="t">เบิกสินค้า</div>
         <div class="d">เลือกสินค้าที่มีอยู่ในสาขานี้ และระบุจำนวนที่ต้องการเบิกออกจากสต๊อก</div>
+        <div class="n">เปิด &rarr;</div>
+      </button>
+      <button class="tile" type="button" data-goto="count" id="tileCount" hidden>
+        <div class="icon">&#128203;</div>
+        <div class="t">นับสต๊อก (หลังปิดร้าน)</div>
+        <div class="d">นับของที่เหลือจริงตอนปิดร้าน ระบบคำนวณยอดใช้ให้เอง ไม่ต้องบันทึกเบิกทุกครั้ง</div>
         <div class="n">เปิด &rarr;</div>
       </button>
       <button class="tile" type="button" data-goto="inventory">
@@ -518,6 +538,55 @@
     </div>
   </section>
 
+  <!-- STEP 3j: Stock count after closing (blind count – the system quantity is shown only on the confirm screen) -->
+  <section id="view-count" hidden>
+    <header class="top">
+      <div>
+        <h2 class="pagetitle">นับสต๊อก (หลังปิดร้าน)</h2>
+        <div class="sub">สาขา: <strong id="branchName15"></strong> &middot; <span id="lastCount15"></span></div>
+      </div>
+      <div class="head-actions">
+        <button class="btn" id="toDash15" type="button">&#8592; หน้าหลัก</button>
+        <button class="btn" id="refresh15" type="button">&#8635; รีเฟรช</button>
+      </div>
+    </header>
+    <div class="banner">นับของที่<strong>เหลืออยู่จริง</strong>แล้วกรอกจำนวน · ช่องที่เว้นว่าง = ยังไม่นับ (ไม่เปลี่ยนสต๊อก) · ระบบจะแสดงจำนวนในระบบและส่วนต่างให้ตรวจก่อนบันทึก · ข้อมูลที่กรอกบันทึกไว้ในเครื่องนี้อัตโนมัติ</div>
+    <div class="toolbar">
+      <div class="seg" id="cntFilter"><button type="button" data-f="todo">ยังไม่นับรอบนี้</button><button type="button" data-f="all">ทั้งหมด</button></div>
+      <label class="search"><input id="q15" type="search" placeholder="ค้นหาด้วยรหัสหรือชื่อสินค้า" autocomplete="off" aria-label="ค้นหาสินค้า"></label>
+      <span class="count" id="count15"></span>
+    </div>
+    <div class="table-box">
+      <div class="scroll">
+        <table>
+          <thead><tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th class="hide-sm">หน่วยนับ</th><th class="hide-sm">นับล่าสุด</th><th class="num">นับได้</th></tr></thead>
+          <tbody id="rows15"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="empty15" hidden></div>
+    </div>
+  </section>
+
+  <!-- STEP 3i: Users & branches (managers) -->
+  <section id="view-users" hidden>
+    <header class="top">
+      <div>
+        <h2 class="pagetitle">ผู้ใช้และสาขา</h2>
+        <div class="sub">กำหนดว่าพนักงานแต่ละคนทำงานสาขาไหนได้ · ผู้จัดการเห็นทุกสาขาเสมอ (รวมสาขาที่เพิ่มใหม่)</div>
+      </div>
+      <div class="head-actions">
+        <button class="btn" id="toPicker13" type="button">&#8592; ย้อนกลับ</button>
+        <button class="btn" id="refresh13" type="button">&#8635; รีเฟรช</button>
+      </div>
+    </header>
+    <div class="toolbar">
+      <label class="search"><input id="q13" type="search" placeholder="ค้นหาชื่อผู้ใช้หรือเบอร์โทร" autocomplete="off" aria-label="ค้นหาผู้ใช้"></label>
+      <label class="count" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="showInactive13"> แสดงบัญชีที่ปิดใช้งาน</label>
+    </div>
+    <div id="userCards"></div>
+    <div class="empty" id="empty13" hidden></div>
+  </section>
+
   <!-- STEP 3h: Material master data (managers) -->
   <section id="view-materials" hidden>
     <header class="top">
@@ -595,7 +664,7 @@
     <header class="top">
       <div>
         <h2 class="pagetitle">รายงานการใช้สินค้า</h2>
-        <div class="sub">นับเฉพาะการเบิกสินค้า (GI) ทุกสาขา · <strong>ไม่รวม</strong>การโอนสินค้าระหว่างสาขา (STR)</div>
+        <div class="sub">การใช้ = เบิกสินค้า (GI) + ส่วนต่างจากการนับสต๊อก (CNT) ทุกสาขา · <strong>ไม่รวม</strong>การโอนระหว่างสาขา (STR) · ก่อน 06:00 นับเป็นวันก่อนหน้า</div>
       </div>
       <div class="head-actions">
         <button class="btn" id="toDash10" type="button">&#8592; ย้อนกลับ</button>
@@ -1154,7 +1223,7 @@
 const CONFIG = {
   // Supabase > Project Settings > API (or "Connect"): the Project URL and the PUBLIC key
   // ("publishable" sb_publishable_... or legacy "anon"). NEVER put the secret / service_role key here.
-  SUPABASE_URL: 'https://rxiszjmvcpukvtkstday.supabase.co',          // e.g. 'https://abcdefgh.supabase.co'
+  SUPABASE_URL: 'https://rxiszjmvcpukvtkstday.supabase.co ',          // e.g. 'https://abcdefgh.supabase.co'
   SUPABASE_KEY: 'sb_publishable_xqTfP6U6CYtgsDOjKNrCQw_1OcQGqFT',
   // Staff sign in with their own account. New accounts need the invite code set in cd_app_settings (5-upgrade-login-str.sql).
 
@@ -1363,6 +1432,9 @@ const RPC = {
   materials:     p => ['get_materials', {}],
   saveMaterial:  b => ['save_material', { p_item_no: b.itemNo || '', p_type: b.type, p_name: b.name, p_unit: b.unit, p_branches: b.branches }],
   deleteMaterial: b => ['delete_material', { p_item_no: b.itemNo }],
+  users:         p => ['get_users', {}],
+  submitCount:   b => ['submit_count', { p_branch: b.branch, p_lines: b.lines }],
+  saveUser:      b => ['save_user_access', { p_user_id: b.userId, p_role: b.role, p_active: b.active, p_branch_ids: b.branchIds }],
   usage:         p => ['get_usage_report', { p_item_no: p.itemNo, p_from: p.from, p_to: p.to, p_group: p.group }]
 };
 const NO_SESSION = new Set(['sign_up', 'sign_in']);
@@ -1384,11 +1456,16 @@ async function callSupabase(params, opts) {
     if (res.status === 404) throw new Error('ไม่พบฟังก์ชัน ' + fn + ' ในฐานข้อมูล — ได้รัน 1-setup.sql และ 5-upgrade-login-str.sql แล้วหรือยัง?');
     const msg = (data && (data.message || data.error)) || ('HTTP ' + res.status);
     if (msg === 'SESSION_EXPIRED') { sessionExpired(); throw new Error('เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง'); }
+    if (msg === 'BRANCH_NOT_ALLOWED') {           // assignment was changed while the page was open
+      toast('คุณไม่มีสิทธิ์ทำรายการในสาขานี้ — เลือกสาขาที่ได้รับมอบหมาย');
+      state.branch = ''; state.view = 'branch'; state.loaded = false; render(); loadBranches(true);
+      throw new Error('ไม่มีสิทธิ์ในสาขานี้');
+    }
     if (msg === 'MANAGER_ONLY') {                 // role was changed to staff while the page was open
       state.minDraft = {};
       state.role = 'staff'; if (state.session) { state.session.role = 'staff'; sessionSave(state.session); }
       if (state.view === 'report') { state.view = rp.back || 'dashboard'; render(); }
-      if (state.view === 'materials') { closeModal('matModal'); closeModal('matDelModal'); state.view = 'branch'; render(); }
+      if (state.view === 'materials' || state.view === 'users') { closeModal('matModal'); closeModal('matDelModal'); state.view = 'branch'; render(); }
       throw new Error('ส่วนนี้สำหรับผู้จัดการเท่านั้น');
     }
     throw new Error(msg);
@@ -1398,7 +1475,7 @@ async function callSupabase(params, opts) {
 }
 const callScriptGet = callSupabase;
 const callScriptPost = callSupabase;
-const mapItems = list => list.map(x => ({ row: x.row, branch: String(x.branch), itemNo: String(x.itemNo), itemName: String(x.itemName), unit: String(x.unit || ''), qty: toNumber(x.qty), minQty: x.minQty === null || x.minQty === undefined || x.minQty === '' ? null : toNumber(x.minQty) }));
+const mapItems = list => list.map(x => ({ row: x.row, branch: String(x.branch), itemNo: String(x.itemNo), itemName: String(x.itemName), unit: String(x.unit || ''), qty: toNumber(x.qty), minQty: x.minQty === null || x.minQty === undefined || x.minQty === '' ? null : toNumber(x.minQty), lastCountedAt: x.lastCountedAt || null }));
 const CACHE_KEY = 'stockcheck.branches.' + CONFIG.SUPABASE_URL;
 function cacheGet() { try { return JSON.parse(localStorage.getItem(CACHE_KEY) || '[]'); } catch (e) { return []; } }
 function cacheSet(v) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(v)); } catch (e) {} }
@@ -1415,6 +1492,8 @@ async function loadBranches(fresh) {
     if (HAS_BACKEND) {
       const data = await callScriptGet({ action: 'branches' });
       state.branches = uniq(data.branches); state.demo = false; banner('');
+      state.allBranches = uniq(data.allBranches || data.branches);
+      state.sessionOk = true;                       // this login has worked with the server in this page
       state.username = data.username || state.username; state.role = data.role || 'staff';
       if (state.session && (state.session.role !== state.role || state.session.expiresAt !== data.expiresAt)) {
         state.session.role = state.role; state.session.expiresAt = data.expiresAt || ''; sessionSave(state.session);
@@ -1439,13 +1518,18 @@ async function loadBranches(fresh) {
       if (match) { state.branch = match; state.view = 'dashboard'; prefetchBranchData(); }
     }
     if (pendingRoute) setTimeout(() => applyRoute(pendingRoute), 0);
-    if (!state.branches.length) banner('<strong>ไม่พบสาขา</strong> ตรวจสอบว่าแท็บที่ 2 มีคอลัมน์หัวข้อ "Branch" พร้อมรายชื่อสาขาด้านล่าง', true);
+    if (HAS_BACKEND && state.view === 'branch' && !state.branch && state.branches.length === 1) {   // only one branch → straight in
+      state.branch = state.branches[0]; lsSet(state.branch); state.view = 'dashboard'; prefetchBranchData();
+    }
+    if (!state.branches.length) banner(HAS_BACKEND && !isManager()
+      ? '<strong>บัญชีนี้ยังไม่ได้กำหนดสาขา</strong> กรุณาติดต่อผู้จัดการให้กำหนดสาขาที่คุณทำงาน (เมนู &ldquo;ผู้ใช้และสาขา&rdquo;) แล้วกดรีเฟรช'
+      : '<strong>ไม่พบสาขา</strong> ตรวจสอบว่าแท็บที่ 2 มีคอลัมน์หัวข้อ "Branch" พร้อมรายชื่อสาขาด้านล่าง', true);
   } catch (err) {
     if (!state.branches.length) {
       state.loaded = false;
       banner('<strong>ไม่สามารถโหลดข้อมูลได้</strong> ' + escapeHTML(err.message || err), true);
       $('retry').hidden = false;
-    } else toast('ไม่สามารถรีเฟรชรายชื่อสาขาได้ กำลังแสดงรายการล่าสุดที่บันทึกไว้');
+    } else if (state.session) toast('ไม่สามารถรีเฟรชรายชื่อสาขาได้ กำลังแสดงรายการล่าสุดที่บันทึกไว้');   // (an expired login shows its own message)
   } finally { render(); }
 }
 
@@ -1530,7 +1614,7 @@ async function loadSrcItems(opts) {
 /* ---------- login ---------- */
 function sessionExpired() {
   // in the middle of work → log in again on top of the current screen; on first load → normal login page
-  if (state.session && state.loaded && state.view !== 'login') return openRelogin();
+  if (state.session && state.sessionOk && state.view !== 'login') return openRelogin();
   if (/^#\/[a-z]/.test(location.hash) && !/^#\/login/.test(location.hash)) pendingRoute = location.hash;
   sessionSave(null); state.session = null; state.view = 'login';
   toast('ครบเวลาเข้าสู่ระบบแล้ว กรุณาเข้าสู่ระบบอีกครั้ง'); render();
@@ -1568,14 +1652,15 @@ async function doSignUp(f) {
 function afterAuth(data) {
   state.session = { token: data.session, username: data.username, role: data.role || 'staff', expiresAt: data.expiresAt || '' };
   state.username = data.username; state.role = state.session.role; sessionSave(state.session);
+  closeModal('reloginModal');
   ['siPassword', 'suPassword', 'suPassword2', 'suInvite'].forEach(id => { $(id).value = ''; });
   state.view = 'branch'; state.loaded = false; render();
   loadBranches(true);
 }
 async function doSignOut() {
   if (HAS_BACKEND && state.session) callScriptPost({ action: 'signOut' }, { overlay: false }).catch(() => {});
-  sessionSave(null);
-  Object.assign(state, { session: null, username: '', role: '', branch: '', view: 'login', loaded: false, items: [], prList: [],
+  sessionSave(null); closeModal('reloginModal'); $('sessWarn').hidden = true;
+  Object.assign(state, { sessionOk: false, session: null, username: '', role: '', branch: '', view: 'login', loaded: false, items: [], prList: [],
     srcItems: [], strSource: '', strToIssue: [], strToReceive: [], strHistory: [] });
   banner(''); render();
 }
@@ -1743,6 +1828,30 @@ const FLOWS = {
       head: ['รหัสสินค้า', 'ชื่อสินค้า', 'หน่วยนับ', 'จำนวนที่ขอ'], row: it => [it.itemNo, it.itemName, it.unit, fmtQty(it.requestQty)] }),
     after: () => openRestock()
   },
+  count: {
+    sel: 'cntSel', qty: 'cntQty', bar: 'selectbar15', tbody: 'rows15', noBind: true,
+    active: () => state.view === 'count',
+    lines: () => branchItems1(state.items),
+    defaultQty: () => '',
+    check: (x, q) => q >= 0 ? '' : 'จำนวนที่นับต้องเป็น 0 ขึ้นไป',
+    barMsg: picked => `กรอกแล้ว <strong>${picked.length}</strong> จาก ${branchItems1(state.items).length} รายการ`,
+    barBtn: ['primary', 'ตรวจสอบและบันทึกการนับ'],
+    confirm: () => ({ title: 'ตรวจสอบผลการนับก่อนบันทึก', btn: ['primary', 'บันทึกผลการนับ'],
+      hint: `สต๊อกของรายการที่นับจะถูกตั้งเป็นจำนวนที่นับได้ ส่วนต่างจะนับเป็น “ยอดใช้” ในรายงาน · ตรวจรายการที่มีเครื่องหมายอีกครั้ง`,
+      head: ['รหัส', 'ชื่อสินค้า', 'ในระบบ', 'นับได้', 'ส่วนต่าง'],
+      row: (x, q) => { const d = q - x.qty;
+        const flag = d > 0 ? ' <span class="badge low">นับได้มากกว่าระบบ</span>' : (x.qty > 0 && -d > x.qty * 0.5 ? ' <span class="badge out">ลดลงมาก ตรวจสอบ</span>' : '');
+        return [x.itemNo, x.itemName, fmtQty(x.qty), fmtQty(q), html(escapeHTML((d > 0 ? '+' : '') + fmtQty(d)) + flag)]; } }),
+    async save(lines) {
+      const d = await callScriptPost({ action: 'submitCount', branch: state.branch, lines: lines.map(({ x, q }) => ({ row: x.row, counted: q })) });
+      cntDraftClear();
+      return d.items.map(it => Object.assign({ countId: d.countId }, it));
+    },
+    done: items => { const used = items.reduce((a, it) => a + Math.max(-Number(it.diff), 0), 0);
+      return { title: '&#9989; บันทึกการนับสต๊อกแล้ว', hint: `เลขที่ <strong>${escapeHTML(items[0].countId)}</strong> · นับ ${items.length} รายการ · รายการที่ไม่ได้กรอกยังเป็นจำนวนเดิม`,
+        head: ['รหัส', 'ชื่อสินค้า', 'นับได้', 'ส่วนต่าง (ใช้ไป)'], row: it => [it.itemNo, it.itemName, fmtQty(it.counted), (Number(it.diff) > 0 ? '+' : '') + fmtQty(it.diff)] }; },
+    after: () => loadItems(true, { overlay: false })
+  },
   strIssue: {
     sel: 'sel8', qty: 'qty8', bar: 'selectbar8', tbody: 'rows8', selAll: 'selAll8',
     active: () => state.view === 'issue' && state.issueMode === 'str',
@@ -1793,7 +1902,7 @@ function renderFlowBar(f) {
     bar.querySelector('button').addEventListener('click', () => openFlowModal(f));
   }
   const firstErr = Object.values(errors)[0];
-  bar.querySelector('.msg').innerHTML = `เลือกแล้ว <strong>${picked.length}</strong> รายการ` + (firstErr ? ' — ' + escapeHTML(firstErr) : '');
+  bar.querySelector('.msg').innerHTML = (F.barMsg ? F.barMsg(picked) : `เลือกแล้ว <strong>${picked.length}</strong> รายการ`) + (firstErr ? ' — ' + escapeHTML(firstErr) : '');
   bar.querySelector('button').disabled = !!firstErr || state.savingLines;
 }
 let activeFlow = null;
@@ -1965,6 +2074,7 @@ function renderBranchView() {
 /* ---------- rendering: dashboard ---------- */
 function renderDashboard() {
   $('branchName0').textContent = state.branch;
+  $('tileCount').hidden = !HAS_BACKEND;
   renderTodo();
 }
 // Fill picking-template.html (placeholders + one <!--ROW-->...<!--/ROW--> block). Returns null if the template looks broken.
@@ -2029,6 +2139,87 @@ async function printPickingLists() {
     '<style>.page{page-break-after:always}.page:last-child{page-break-after:auto}</style></head><body>' +
     full.map(h => '<div class="page">' + body(h) + '</div>').join('') + '<script>window.onload=function(){window.print()}<\/script></body></html>');
   w.document.close();
+}
+
+/* ---------- stock count (after closing) ---------- */
+// a business day ends at 06:00, so a count saved after midnight still belongs to that night's closing
+const bizDate = t => { const d = new Date(new Date(t).getTime() - 6 * 3600e3); return isoDate(d); };
+const countedThisRound = x => !!x.lastCountedAt && bizDate(x.lastCountedAt) === bizDate(Date.now());
+state.cntSel = {}; state.cntQty = {};
+const cnt = { filter: 'todo', q: '' };
+const cntKey = () => 'stockcheck.count.' + (state.branch || '').toLowerCase();
+function cntDraftLoad() {
+  let d = {}; try { d = JSON.parse(localStorage.getItem(cntKey()) || '{}'); } catch (e) {}
+  state.cntQty = {}; state.cntSel = {};
+  Object.entries(d).forEach(([row, v]) => { if (String(v).trim() !== '') { state.cntQty[row] = v; state.cntSel[row] = true; } });
+}
+function cntDraftSave() { try { localStorage.setItem(cntKey(), JSON.stringify(state.cntQty)); } catch (e) {} }
+function cntDraftClear() { state.cntQty = {}; state.cntSel = {}; try { localStorage.removeItem(cntKey()); } catch (e) {} }
+function renderCount() {
+  $('branchName15').textContent = state.branch;
+  const all = branchItems1(state.items);
+  const last = all.map(x => x.lastCountedAt).filter(Boolean).sort().pop();
+  const days = last ? Math.round((new Date(bizDate(Date.now())) - new Date(bizDate(last))) / 864e5) : null;
+  $('lastCount15').textContent = !last ? 'ยังไม่เคยนับ' : 'นับครั้งล่าสุด ' + new Date(last).toLocaleString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) +
+    (days === 0 ? ' (รอบนี้)' : ` (${days} วันก่อน)`);
+  document.querySelectorAll('#cntFilter button').forEach(b => b.classList.toggle('active', b.dataset.f === cnt.filter));
+  const q = cnt.q.trim().toLowerCase();
+  const list = all.filter(x => (cnt.filter === 'all' || !countedThisRound(x) || state.cntSel[x.row]) && (!q || x.itemNo.toLowerCase().includes(q) || x.itemName.toLowerCase().includes(q)));
+  const todo = all.filter(x => !countedThisRound(x)).length;
+  $('count15').textContent = `ยังไม่นับรอบนี้ ${todo} จาก ${all.length} รายการ`;
+  $('rows15').innerHTML = list.map(x => {
+    const v = state.cntQty[x.row]; const done = countedThisRound(x);
+    return `<tr class="${v !== undefined && String(v).trim() !== '' ? 'selected' : ''}"><td>${escapeHTML(x.itemNo)}</td>` +
+      `<td class="name">${escapeHTML(x.itemName)}${done ? ' <span class="badge received">นับแล้ว</span>' : ''}</td><td class="hide-sm unit">${escapeHTML(x.unit || '—')}</td>` +
+      `<td class="hide-sm">${x.lastCountedAt ? escapeHTML(new Date(x.lastCountedAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })) : '—'}</td>` +
+      `<td class="num"><input class="qty-input" type="number" min="0" step="any" data-row="${x.row}" value="${v !== undefined ? escapeHTML(String(v)) : ''}" placeholder="${escapeHTML(x.unit || '')}" aria-label="นับได้ ${escapeHTML(x.itemNo)}"></td></tr>`;
+  }).join('');
+  const empty = $('empty15'); empty.hidden = list.length > 0;
+  if (!list.length) empty.textContent = state.itemsLoading ? 'กำลังโหลด…' : all.length ? '✓ นับครบทุกรายการแล้วในรอบนี้ (เลือก “ทั้งหมด” เพื่อนับซ้ำ)' : 'ไม่มีรายการสินค้าในสาขานี้';
+  renderFlowBar('count');
+}
+
+/* ---------- users & branches (managers) ---------- */
+const usr = { list: [], branches: [], drafts: {}, q: '', showInactive: false, loading: false, saving: {} };
+async function loadUsers(opts) {
+  usr.loading = true; render();
+  try { const d = await callScriptGet({ action: 'users' }, { overlay: !!(opts && opts.overlay) && !usr.list.length }); usr.list = d.users; usr.branches = d.branches; usr.drafts = {}; }
+  catch (err) { banner('<strong>โหลดรายชื่อผู้ใช้ไม่สำเร็จ</strong> ' + escapeHTML(err.message || err), true); }
+  finally { usr.loading = false; render(); }
+}
+const usrCur = u => usr.drafts[u.id] || { role: u.role, active: u.active, branchIds: u.branchIds.slice() };
+const usrChanged = u => { const d = usr.drafts[u.id]; if (!d) return false;
+  return d.role !== u.role || d.active !== u.active || JSON.stringify(d.branchIds.slice().sort((a, b) => a - b)) !== JSON.stringify(u.branchIds.slice().sort((a, b) => a - b)); };
+function renderUsers() {
+  const q = usr.q.trim().toLowerCase();
+  const list = usr.list.filter(u => (usr.showInactive || u.active || usr.drafts[u.id]) && (!q || u.username.toLowerCase().includes(q) || String(u.phone || '').includes(q)));
+  $('userCards').innerHTML = list.map(u => {
+    const c = usrCur(u), me = same(u.username, state.username), mgr = c.role === 'manager';
+    const chips = usr.branches.map(b => { const on = mgr || c.branchIds.includes(b.id);
+      return `<label class="${on ? 'on' : ''}"><input type="checkbox" data-u="${u.id}" data-b="${b.id}" ${on ? 'checked' : ''} ${mgr ? 'disabled' : ''}>${escapeHTML(b.name)}</label>`; }).join('');
+    const note = mgr ? 'ผู้จัดการเห็นและทำรายการได้ทุกสาขาโดยอัตโนมัติ'
+      : !c.branchIds.length ? '⚠ ยังไม่ได้เลือกสาขา — พนักงานคนนี้จะยังทำรายการไม่ได้' : `ทำงานได้ ${c.branchIds.length} สาขา`;
+    return `<div class="ucard${usrChanged(u) ? ' changed' : ''}${c.active ? '' : ' inactive'}" data-u="${u.id}">
+      <div class="top"><div class="nm">${escapeHTML(u.username)}${me ? ' (คุณ)' : ''}<small>${escapeHTML(u.phone || '')}</small></div>
+        <select data-role="${u.id}" ${me ? 'disabled title="เปลี่ยนสิทธิ์ของตัวเองไม่ได้"' : ''}><option value="staff" ${c.role === 'staff' ? 'selected' : ''}>พนักงาน</option><option value="manager" ${mgr ? 'selected' : ''}>ผู้จัดการ</option></select>
+        <label class="count" style="display:flex;gap:6px;align-items:center"><input type="checkbox" data-active="${u.id}" ${c.active ? 'checked' : ''} ${me ? 'disabled' : ''}> ใช้งานได้</label></div>
+      <div class="brs">${chips}</div><div class="note">${note}</div>
+      <div class="acts" ${usrChanged(u) ? '' : 'hidden'}><button class="btn" type="button" data-undo="${u.id}">ยกเลิก</button>
+        <button class="btn primary" type="button" data-save="${u.id}" ${usr.saving[u.id] ? 'disabled' : ''}>${usr.saving[u.id] ? 'กำลังบันทึก…' : 'บันทึก'}</button></div></div>`;
+  }).join('');
+  const empty = $('empty13'); empty.hidden = list.length > 0;
+  if (!list.length) empty.textContent = usr.loading ? 'กำลังโหลด…' : 'ไม่พบผู้ใช้';
+}
+function usrEdit(id, fn) { const u = usr.list.find(x => x.id === id); const d = usrCur(u); fn(d); usr.drafts[id] = d; if (!usrChanged(u)) delete usr.drafts[id]; render(); }
+async function usrSave(id) {
+  const u = usr.list.find(x => x.id === id), d = usr.drafts[id]; if (!d) return;
+  usr.saving[id] = true; render();
+  try {
+    await callScriptPost({ action: 'saveUser', userId: id, role: d.role, active: d.active, branchIds: d.role === 'manager' ? [] : d.branchIds });
+    Object.assign(u, { role: d.role, active: d.active, branchIds: d.role === 'manager' ? [] : d.branchIds.slice() }); delete usr.drafts[id];
+    toast('บันทึกสิทธิ์ของ ' + u.username + ' แล้ว' + (d.active ? '' : ' (ออกจากระบบทันที)'));
+  } catch (err) { toast('บันทึกไม่สำเร็จ: ' + (err.message || err)); }
+  finally { delete usr.saving[id]; render(); }
 }
 
 /* ---------- material master data (managers) ---------- */
@@ -2132,7 +2323,7 @@ function renderRestock() {
   $('branchName11').textContent = state.branch;
   $('updated11').textContent = state.rsLoading ? 'กำลังโหลด…' : 'อัปเดตล่าสุด ' + (state.lastUpdated11 || 'เมื่อสักครู่');
   document.querySelectorAll('#rsFilter button').forEach(b => b.classList.toggle('active', b.dataset.f === state.rsFilter));
-  const others = state.branches.filter(b => !same(b, state.branch));
+  const others = (state.allBranches || state.branches).filter(b => !same(b, state.branch));
   const tot = {}; const need = new Set(rsLines().map(x => x.itemNo));
   state.stockAll.forEach(r => { if (need.has(r.itemNo)) tot[r.branch] = (tot[r.branch] || 0) + Number(r.qty); });
   $('rsSource').innerHTML = '<option value="">— เลือกสาขา —</option>' + others.map(b => `<option value="${escapeHTML(b)}">${escapeHTML(b)}${tot[b] ? ` (มีของที่ขาด รวม ${fmtN(tot[b])})` : ' (ไม่มีของที่ขาด)'}</option>`).join('');
@@ -2184,6 +2375,7 @@ function renderTodo() {
     ...(HAS_BACKEND ? [
       { key: 'strIn', ic: '&#128666;', label: 'สินค้าโอนจากสาขาอื่น รอรับเข้า', n: state.strToReceive.length, loading: state.strLoading },
       { key: 'strOut', ic: '&#128228;', label: 'สาขาอื่นขอโอนจากสาขานี้ รอจ่าย', n: state.strToIssue.length, loading: state.strLoading }] : []),
+    ...(HAS_BACKEND ? [{ key: 'count', ic: '&#128203;', label: 'นับสต๊อกหลังปิดร้าน: ยังไม่นับรอบนี้', n: items.filter(x => !countedThisRound(x)).length, loading: state.itemsLoading }] : []),
     { key: 'out', ic: '&#9888;', label: 'สินค้าหมด', n: out, loading: state.itemsLoading, warn: true },
     { key: 'low', ic: '&#9888;', label: 'สินค้าใกล้หมด (ถึงขั้นต่ำ)', n: low, loading: state.itemsLoading, warn: true }
   ];
@@ -2200,6 +2392,7 @@ function openTodo(key) {
   else if (key === 'strIn') { goto('receipt'); chooseReceiptMode('str'); }
   else if (key === 'strOut') { goto('issue'); chooseIssueMode('str'); }
   else if (key === 'out' || key === 'low') { state.rsFilter = key; goto('restock'); }
+  else if (key === 'count') goto('count');
 }
 function renderUser() {
   const on = HAS_BACKEND && !!state.session;
@@ -2386,7 +2579,7 @@ function renderTransfer() {
   $('trTabNew').classList.toggle('active', isNew); $('trTabStatus').classList.toggle('active', !isNew);
   $('transferNew').hidden = !isNew; $('transferStatus').hidden = isNew;
   if (isNew) {
-    const others = state.branches.filter(b => !same(b, state.branch));
+    const others = (state.allBranches || state.branches).filter(b => !same(b, state.branch));
     const srcSel = $('strSource');
     srcSel.innerHTML = '<option value="">เลือกสาขาต้นทาง…</option>' + others.map(b => `<option value="${escapeHTML(b)}">${escapeHTML(b)}</option>`).join('');
     srcSel.value = others.find(b => same(b, state.strSource)) || '';
@@ -2763,8 +2956,9 @@ function rpIndexAt(clientX) {
 
 /* ---------- master render ---------- */
 /* ---------- phones: card layout helpers for the item-picking tables ---------- */
-const PICK_TABLES = ['rows2', 'rows4', 'rows5', 'rows6', 'rows3', 'rows7', 'rows8', 'rows11'];
+const PICK_TABLES = ['rows2', 'rows4', 'rows5', 'rows6', 'rows3', 'rows7', 'rows8', 'rows11', 'rows15'];
 PICK_TABLES.forEach(id => { const t = $(id) && $(id).closest('table'); if (t) t.classList.add('pick'); });
+$('rows15').closest('table').classList.add('nocb');
 // copy each column heading onto its cells (shown as small labels on phones) and add − / + next to quantity boxes
 function decoratePickTables() {
   PICK_TABLES.forEach(id => {
@@ -2801,8 +2995,8 @@ document.addEventListener('click', e => {
 /* ---------- an address per screen: stock-check.html#/issue/str?b=Sathorn ----------
    Back/forward move between screens, refresh stays on the same screen, and any screen can be bookmarked,
    added to the iPhone home screen or sent as a link. #/str/STR0012?b=Sathorn opens one request. */
-const ROUTE_VIEWS = ['dashboard', 'inventory', 'replenish', 'purchase', 'transfer', 'receipt', 'issue', 'restock', 'report', 'materials', 'str'];
-const BRANCHLESS = new Set(['report', 'materials']);   // these screens cover all branches
+const ROUTE_VIEWS = ['dashboard', 'inventory', 'replenish', 'purchase', 'transfer', 'receipt', 'issue', 'restock', 'report', 'materials', 'users', 'count', 'str'];
+const BRANCHLESS = new Set(['report', 'materials', 'users']);   // these screens cover all branches
 let routing = false;                                   // applying an address → don't add history entries
 let pendingRoute = /^#\/[a-z]/.test(location.hash) && !/^#\/login/.test(location.hash) ? location.hash : null;   // waiting for login / branch
 function routeOf() {
@@ -2834,7 +3028,12 @@ async function applyRoute(hash) {
   if (HAS_BACKEND && !state.session) { pendingRoute = hash; return; }          // after login
   if (!state.loaded) { pendingRoute = hash; return; }                           // after the branch list loads
   if (!BRANCHLESS.has(view)) {
-    const want = branch ? state.branches.find(x => same(x, branch)) : state.branch;
+    let want = branch ? state.branches.find(x => same(x, branch)) : state.branch;
+    if (branch && !want) {                                                        // link for a branch this user may not use
+      toast(`คุณไม่มีสิทธิ์ในสาขา ${branch}`);
+      want = state.branch || (state.branches.length === 1 ? state.branches[0] : '');
+      hash = hash.replace(/\?.*$/, '');
+    }
     if (!want) { pendingRoute = hash; state.view = 'branch'; render(); return; } // after a branch is picked
     if (!same(want, state.branch)) { state.branch = want; lsSet(want); prefetchBranchData(); }
   } else if (view === 'report') rp.back = state.branch ? 'dashboard' : 'branch';
@@ -2870,6 +3069,8 @@ function render() {
   $('view-report').hidden = v !== 'report';
   $('view-restock').hidden = v !== 'restock';
   $('view-materials').hidden = v !== 'materials';
+  $('view-users').hidden = v !== 'users';
+  $('view-count').hidden = v !== 'count';
   if (v !== 'report') rpHideTip();
   $('view-replenish').hidden = v !== 'replenish';
   if (v === 'replenish') { $('branchName9').textContent = state.branch; $('tileTransfer').hidden = !HAS_BACKEND; }
@@ -2888,6 +3089,8 @@ function render() {
   else if (v === 'report') renderReport();
   else if (v === 'restock') renderRestock();
   else if (v === 'materials') renderMaterials();
+  else if (v === 'users') renderUsers();
+  else if (v === 'count') renderCount();
   else if (v === 'issue') {
     $('branchName5').textContent = state.branch;
     const m = state.issueMode;
@@ -2933,6 +3136,8 @@ function goto(view) {
   if (view === 'issue') { state.issueMode = HAS_BACKEND ? null : 'general'; if (state.issueMode === 'general') chooseIssueMode('general'); }
   if (view === 'receipt') { state.receiptMode = null; }
   if (view === 'restock') openRestock();
+  if (view === 'count') { cnt.q = ''; $('q15').value = ''; cnt.filter = 'todo'; cntDraftLoad(); loadItems(false).then(() => render()); }
+  if (view === 'users') { if (!isManager()) { toast('ส่วนนี้สำหรับผู้จัดการเท่านั้น'); state.view = 'branch'; } else loadUsers({ overlay: true }); }
   if (view === 'materials') { if (!isManager()) { toast('ส่วนนี้สำหรับผู้จัดการเท่านั้น'); state.view = 'branch'; } else loadMaterials({ overlay: true }); }
   if (view === 'inventory') state.minDraft = {};
   if (view === 'report') { if (!isManager()) { toast('รายงานนี้สำหรับผู้จัดการเท่านั้น'); state.view = rp.back || 'dashboard'; } else openReport(); }
@@ -3099,6 +3304,38 @@ $('todoRows').addEventListener('click', e => { const b = e.target.closest('[data
 
 /* usage report – opened from the branch picker (no branch needed) */
 $('openReport0').addEventListener('click', () => { rp.back = 'branch'; goto('report'); });
+
+/* stock count */
+$('toDash15').addEventListener('click', () => goto('dashboard'));
+$('refresh15').addEventListener('click', () => loadItems(true).then(() => { toast('รีเฟรชแล้ว'); render(); }));
+$('cntFilter').addEventListener('click', e => { const b = e.target.closest('button[data-f]'); if (b) { cnt.filter = b.dataset.f; render(); } });
+$('q15').addEventListener('input', e => { cnt.q = e.target.value; render(); });
+const cntInput = e => {
+  const qi = e.target.closest('.qty-input'); if (!qi) return;
+  const row = qi.dataset.row, v = qi.value;
+  if (String(v).trim() === '') { delete state.cntQty[row]; delete state.cntSel[row]; } else { state.cntQty[row] = v; state.cntSel[row] = true; }
+  qi.closest('tr').className = state.cntSel[row] ? 'selected' : '';
+  cntDraftSave(); renderFlowBar('count');
+};
+$('rows15').addEventListener('input', cntInput);
+$('rows15').addEventListener('change', cntInput);
+
+/* users & branches */
+$('openUsers0').addEventListener('click', () => goto('users'));
+$('toPicker13').addEventListener('click', () => { state.view = 'branch'; render(); });
+$('refresh13').addEventListener('click', () => loadUsers().then(() => toast('รีเฟรชแล้ว')));
+$('q13').addEventListener('input', e => { usr.q = e.target.value; render(); });
+$('showInactive13').addEventListener('change', e => { usr.showInactive = e.target.checked; render(); });
+$('userCards').addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.b) return usrEdit(+t.dataset.u, d => { const b = +t.dataset.b; d.branchIds = t.checked ? [...new Set(d.branchIds.concat(b))] : d.branchIds.filter(x => x !== b); });
+  if (t.dataset.role) return usrEdit(+t.dataset.role, d => { d.role = t.value; });
+  if (t.dataset.active) return usrEdit(+t.dataset.active, d => { d.active = t.checked; });
+});
+$('userCards').addEventListener('click', e => {
+  const sv = e.target.closest('[data-save]'); if (sv) return usrSave(+sv.dataset.save);
+  const un = e.target.closest('[data-undo]'); if (un) { delete usr.drafts[+un.dataset.undo]; render(); }
+});
 
 /* material master data */
 $('openMaterials0').addEventListener('click', () => goto('materials'));
