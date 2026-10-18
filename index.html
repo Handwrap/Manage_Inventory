@@ -428,7 +428,7 @@
         <div class="d">นับของที่เหลือจริงตอนปิดร้าน ระบบคำนวณยอดใช้ให้เอง ไม่ต้องบันทึกจ่ายออกทุกครั้ง</div>
         <div class="n">เปิด &rarr;</div>
       </button>
-      <button class="tile" type="button" data-goto="inventory">
+      <button class="tile" type="button" data-goto="inventory" id="tileInventory" hidden>
         <div class="icon">&#128203;</div>
         <div class="t">จัดการสต๊อกสินค้า</div>
         <div class="d">ตรวจสอบจำนวนสต๊อกปัจจุบัน (ดูอย่างเดียว)</div>
@@ -550,7 +550,7 @@
         <button class="btn" id="refresh15" type="button">&#8635; รีเฟรช</button>
       </div>
     </header>
-    <div class="banner">นับของที่<strong>เหลืออยู่จริง</strong>แล้วกรอกจำนวน · ช่องที่เว้นว่าง = ยังไม่นับ (ไม่เปลี่ยนสต๊อก) · ระบบจะแสดงจำนวนในระบบและส่วนต่างให้ตรวจก่อนบันทึก · ข้อมูลที่กรอกบันทึกไว้ในเครื่องนี้อัตโนมัติ</div>
+    <div class="banner">ช่อง &ldquo;นับได้&rdquo; ใส่<strong>จำนวนในระบบ</strong>ไว้ให้แล้ว — นับของที่เหลือจริงแล้ว<strong>แก้เฉพาะรายการที่ไม่ตรง</strong> · ลบตัวเลขออก = ข้ามรายการนั้น (ไม่บันทึก) · ระบบจะแสดงส่วนต่างให้ตรวจก่อนบันทึก · ข้อมูลที่แก้บันทึกไว้ในเครื่องนี้อัตโนมัติ</div>
     <div class="toolbar">
       <div class="seg" id="cntFilter"><button type="button" data-f="todo">ยังไม่นับรอบนี้</button><button type="button" data-f="all">ทั้งหมด</button></div>
       <label class="search"><input id="q15" type="search" placeholder="ค้นหาด้วยรหัสหรือชื่อสินค้า" autocomplete="off" aria-label="ค้นหาสินค้า"></label>
@@ -559,7 +559,7 @@
     <div class="table-box">
       <div class="scroll">
         <table>
-          <thead><tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th class="hide-sm">หน่วยนับ</th><th class="hide-sm">นับล่าสุด</th><th class="num">นับได้</th></tr></thead>
+          <thead><tr><th>รหัสสินค้า</th><th>ชื่อสินค้า</th><th class="hide-sm">หน่วยนับ</th><th class="hide-sm">นับล่าสุด</th><th class="num">ในระบบ</th><th class="num">นับได้</th></tr></thead>
           <tbody id="rows15"></tbody>
         </table>
       </div>
@@ -608,7 +608,7 @@
     <div class="table-box">
       <div class="scroll">
         <table>
-          <thead><tr><th>รหัส</th><th>ชื่อสินค้า</th><th>ประเภท</th><th class="hide-sm">หน่วยนับ</th><th>สาขาที่ใช้ (คงเหลือ)</th><th class="actions"></th></tr></thead>
+          <thead><tr><th>รหัส</th><th>ชื่อสินค้า</th><th>ประเภท</th><th class="hide-sm">หน่วยนับ / หน่วยซื้อ</th><th>สาขาที่ใช้ (คงเหลือ)</th><th class="actions"></th></tr></thead>
           <tbody id="rows12"></tbody>
         </table>
       </div>
@@ -1121,9 +1121,19 @@
     <div class="code" id="mfCode"></div>
     <label class="lbl" for="mfName">ชื่อสินค้า</label>
     <input type="text" id="mfName" maxlength="120" autocomplete="off">
-    <label class="lbl" for="mfUnit">หน่วยนับ</label>
+    <label class="lbl" for="mfUnit">หน่วยนับ (หน่วยฐาน)</label>
     <input type="text" id="mfUnit" maxlength="20" list="mfUnits" autocomplete="off" placeholder="เช่น g, kg, ml, pcs, แพ็ค">
     <datalist id="mfUnits"></datalist>
+    <div class="field-hint">ใช้กับสต๊อก การนับ การจ่ายออก และรายงานทั้งหมด</div>
+    <div class="field-hint" id="mfUnitWarn" hidden style="color:var(--out-ink)">⚠ สินค้านี้มีคงเหลืออยู่ — การเปลี่ยนหน่วยนับจะ<strong>ไม่แปลง</strong>จำนวนคงเหลือเดิม ใช้เมื่อแก้ชื่อหน่วยที่สะกดผิดเท่านั้น</div>
+    <label class="lbl" for="mfPUnit">หน่วยซื้อ <span style="font-weight:400;color:var(--muted)">(เว้นว่าง = ซื้อเป็นหน่วยนับ)</span></label>
+    <input type="text" id="mfPUnit" maxlength="20" list="mfPUnits" autocomplete="off" placeholder="เช่น ลัง, กล่อง, ถุง">
+    <datalist id="mfPUnits"></datalist>
+    <div id="mfPerRow" hidden>
+      <label class="lbl" for="mfPer">1 <span class="js-pu"></span> ประมาณกี่ <span class="js-bu"></span> <span style="font-weight:400;color:var(--muted)">(ประมาณได้ · เว้นว่างได้)</span></label>
+      <input type="number" id="mfPer" min="0" step="any" inputmode="decimal" style="width:100%;padding:9px 11px;border-radius:8px;border:1px solid var(--border);font:inherit;font-size:16px;background:var(--surface);color:var(--text)">
+      <div class="field-hint">ถ้าแต่ละ<span class="js-pu"></span>ไม่เท่ากัน ใส่ค่าโดยประมาณ — ตอนรับสินค้าให้กรอกจำนวนจริง และการนับสต๊อกจะปรับส่วนต่างให้เอง</div>
+    </div>
     <label class="lbl">สาขาที่ใช้สินค้านี้ <button class="link-btn" id="mfAll" type="button" style="font-weight:400;margin-left:6px">เลือกทุกสาขา</button></label>
     <div class="brs" id="mfBranches"></div>
     <div class="field-hint">สาขาที่เพิ่มใหม่จะเริ่มที่คงเหลือ 0 · เอาสาขาออกได้เมื่อคงเหลือเป็น 0 และไม่มีใบขอซื้อ/ใบขอโอนค้าง</div>
@@ -1455,7 +1465,7 @@ const RPC = {
   stockAll:      p => ['get_stock_all', {}],
   setMin:        b => ['set_min_qty', { p_branch: b.branch, p_lines: b.lines }],
   materials:     p => ['get_materials', {}],
-  saveMaterial:  b => ['save_material', { p_item_no: b.itemNo || '', p_type: b.type, p_name: b.name, p_unit: b.unit, p_add: b.add, p_remove: b.remove }],
+  saveMaterial:  b => ['save_material', { p_item_no: b.itemNo || '', p_type: b.type, p_name: b.name, p_unit: b.unit, p_add: b.add, p_remove: b.remove, p_purchase_unit: b.purchaseUnit || '', p_per_purchase: b.perPurchase }],
   deleteMaterial: b => ['delete_material', { p_item_no: b.itemNo }],
   users:         p => ['get_users', {}],
   submitCount:   b => ['submit_count', { p_branch: b.branch, p_lines: b.lines }],
@@ -1864,7 +1874,7 @@ const FLOWS = {
     lines: () => branchItems1(state.items),
     defaultQty: () => '',
     check: (x, q) => q >= 0 ? '' : 'จำนวนที่นับต้องเป็น 0 ขึ้นไป',
-    barMsg: picked => `กรอกแล้ว <strong>${picked.length}</strong> จาก ${branchItems1(state.items).length} รายการ`,
+    barMsg: picked => `จะบันทึก <strong>${picked.length}</strong> จาก ${branchItems1(state.items).length} รายการ · ไม่ตรงกับระบบ <strong>${picked.filter(p => Number.isFinite(p.q) && p.q !== p.x.qty).length}</strong> รายการ`,
     barBtn: ['primary', 'ตรวจสอบและบันทึกการนับ'],
     confirm: () => ({ title: 'ตรวจสอบผลการนับก่อนบันทึก', btn: ['primary', 'บันทึกผลการนับ'],
       hint: `สต๊อกของรายการที่นับจะถูกตั้งเป็นจำนวนที่นับได้ ส่วนต่างจะนับเป็น “ยอดใช้” ในรายงาน · ตรวจรายการที่มีเครื่องหมายอีกครั้ง`,
@@ -1878,7 +1888,7 @@ const FLOWS = {
       return d.items.map(it => Object.assign({ countId: d.countId }, it));
     },
     done: items => { const used = items.reduce((a, it) => a + Math.max(-Number(it.diff), 0), 0);
-      return { title: '&#9989; บันทึกการนับสต๊อกแล้ว', hint: `เลขที่ <strong>${escapeHTML(items[0].countId)}</strong> · นับ ${items.length} รายการ · รายการที่ไม่ได้กรอกยังเป็นจำนวนเดิม`,
+      return { title: '&#9989; บันทึกการนับสต๊อกแล้ว', hint: `เลขที่ <strong>${escapeHTML(items[0].countId)}</strong> · นับ ${items.length} รายการ · รายการที่ข้ามไว้ยังเป็นจำนวนเดิม`,
         head: ['รหัส', 'ชื่อสินค้า', 'นับได้', 'ส่วนต่าง (ใช้ไป)'], row: it => [it.itemNo, it.itemName, fmtQty(it.counted), (Number(it.diff) > 0 ? '+' : '') + fmtQty(it.diff)] }; },
     after: () => loadItems(true, { overlay: false })
   },
@@ -2175,18 +2185,35 @@ async function printPickingLists() {
 // a business day ends at 06:00, so a count saved after midnight still belongs to that night's closing
 const bizDate = t => { const d = new Date(new Date(t).getTime() - 6 * 3600e3); return isoDate(d); };
 const countedThisRound = x => !!x.lastCountedAt && bizDate(x.lastCountedAt) === bizDate(Date.now());
-state.cntSel = {}; state.cntQty = {};
+state.cntSel = {}; state.cntQty = {}; state.cntAuto = {}; state.cntSkip = {};   // auto = pre-filled with the system qty, skip = box cleared on purpose
 const cnt = { filter: 'todo', q: '' };
 const cntKey = () => 'stockcheck.count.' + (state.branch || '').toLowerCase();
 function cntDraftLoad() {
   let d = {}; try { d = JSON.parse(localStorage.getItem(cntKey()) || '{}'); } catch (e) {}
-  state.cntQty = {}; state.cntSel = {};
-  Object.entries(d).forEach(([row, v]) => { if (String(v).trim() !== '') { state.cntQty[row] = v; state.cntSel[row] = true; } });
+  state.cntQty = {}; state.cntSel = {}; state.cntAuto = {}; state.cntSkip = {};
+  Object.entries(d).forEach(([row, v]) => { if (String(v).trim() !== '') { state.cntQty[row] = v; state.cntSel[row] = true; } else state.cntSkip[row] = true; });
 }
-function cntDraftSave() { try { localStorage.setItem(cntKey(), JSON.stringify(state.cntQty)); } catch (e) {} }
-function cntDraftClear() { state.cntQty = {}; state.cntSel = {}; try { localStorage.removeItem(cntKey()); } catch (e) {} }
+// only what the user typed or cleared is kept as a draft; the pre-filled system numbers are re-made from fresh stock
+function cntDraftSave() {
+  const d = {}; Object.keys(state.cntQty).forEach(r => { if (!state.cntAuto[r]) d[r] = state.cntQty[r]; }); Object.keys(state.cntSkip).forEach(r => { d[r] = ''; });
+  try { localStorage.setItem(cntKey(), JSON.stringify(d)); } catch (e) {}
+}
+function cntDraftClear() { state.cntQty = {}; state.cntSel = {}; state.cntAuto = {}; state.cntSkip = {}; try { localStorage.removeItem(cntKey()); } catch (e) {} }
+// default every not-yet-counted item to its current system qty (so staff only change what differs)
+function cntPrefill() {
+  Object.keys(state.cntAuto).forEach(r => { delete state.cntQty[r]; delete state.cntSel[r]; });
+  state.cntAuto = {};
+  branchItems1(state.items).forEach(x => {
+    if (state.cntQty[x.row] === undefined && !state.cntSkip[x.row] && !countedThisRound(x)) {
+      state.cntQty[x.row] = String(x.qty); state.cntSel[x.row] = true; state.cntAuto[x.row] = true;
+    }
+  });
+}
+const cntDiff = x => { const v = state.cntQty[x.row]; return v === undefined || String(v).trim() === '' || !Number.isFinite(Number(v)) ? 0 : Number(v) - x.qty; };
+const cntDiffHtml = x => { const d = cntDiff(x); return d ? `<div class="cnt-diff" style="font-size:12px;color:${d < 0 ? 'var(--out-ink)' : 'var(--low-ink)'}">${d > 0 ? '+' : ''}${fmtQty(d)}</div>` : '<div class="cnt-diff"></div>'; };
 function renderCount() {
   $('branchName15').textContent = state.branch;
+  cntPrefill();
   const all = branchItems1(state.items);
   const last = all.map(x => x.lastCountedAt).filter(Boolean).sort().pop();
   const days = last ? Math.round((new Date(bizDate(Date.now())) - new Date(bizDate(last))) / 864e5) : null;
@@ -2199,10 +2226,11 @@ function renderCount() {
   $('count15').textContent = `ยังไม่นับรอบนี้ ${todo} จาก ${all.length} รายการ`;
   $('rows15').innerHTML = list.map(x => {
     const v = state.cntQty[x.row]; const done = countedThisRound(x);
-    return `<tr class="${v !== undefined && String(v).trim() !== '' ? 'selected' : ''}"><td>${escapeHTML(x.itemNo)}</td>` +
+    return `<tr class="${cntDiff(x) ? 'selected' : ''}"><td>${escapeHTML(x.itemNo)}</td>` +
       `<td class="name">${escapeHTML(x.itemName)}${done ? ' <span class="badge received">นับแล้ว</span>' : ''}</td><td class="hide-sm unit">${escapeHTML(x.unit || '—')}</td>` +
       `<td class="hide-sm">${x.lastCountedAt ? escapeHTML(new Date(x.lastCountedAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })) : '—'}</td>` +
-      `<td class="num"><input class="qty-input" type="number" min="0" step="any" data-row="${x.row}" value="${v !== undefined ? escapeHTML(String(v)) : ''}" placeholder="${escapeHTML(x.unit || '')}" aria-label="นับได้ ${escapeHTML(x.itemNo)}"></td></tr>`;
+      `<td class="num">${fmtQty(x.qty)}</td>` +
+      `<td class="num"><input class="qty-input" type="number" min="0" step="any" data-row="${x.row}" value="${v !== undefined ? escapeHTML(String(v)) : ''}" placeholder="ข้าม" aria-label="นับได้ ${escapeHTML(x.itemNo)}">${cntDiffHtml(x)}</td></tr>`;
   }).join('');
   const empty = $('empty15'); empty.hidden = list.length > 0;
   if (!list.length) empty.textContent = state.itemsLoading ? 'กำลังโหลด…' : all.length ? '✓ นับครบทุกรายการแล้วในรอบนี้ (เลือก “ทั้งหมด” เพื่อนับซ้ำ)' : 'ไม่มีรายการสินค้าในสาขานี้';
@@ -2269,7 +2297,7 @@ function renderMaterials() {
   const list = mat.items.filter(x => (mat.filter === 'all' || x.type === mat.filter) && (!q || x.itemNo.toLowerCase().includes(q) || x.itemName.toLowerCase().includes(q)));
   $('count12').textContent = mat.loading && !mat.items.length ? '' : list.length + ' รายการ';
   $('rows12').innerHTML = list.map(x => `<tr><td><strong>${escapeHTML(x.itemNo)}</strong></td><td class="name">${escapeHTML(x.itemName)}</td>` +
-    `<td><span class="badge closed">${matTypeLabel(x.type)}</span></td><td class="hide-sm unit">${escapeHTML(x.unit)}</td>` +
+    `<td><span class="badge closed">${matTypeLabel(x.type)}</span></td><td class="hide-sm unit">${escapeHTML(x.unit)}${x.purchaseUnit ? `<div style="font-size:12px">ซื้อเป็น ${escapeHTML(x.purchaseUnit)}${x.perPurchase ? ` (≈${fmtN(x.perPurchase)} ${escapeHTML(x.unit)})` : ''}</div>` : ''}</td>` +
     `<td class="name">${x.branches.length ? x.branches.map(b => `<span class="chip">${escapeHTML(b.branch)}<span class="q">${fmtN(b.qty)}</span></span>`).join('') : '<span style="color:var(--muted)">ยังไม่มีสาขา</span>'}</td>` +
     `<td class="actions"><button class="btn small" data-edit="${escapeHTML(x.itemNo)}">แก้ไข</button><button class="btn small" data-del="${escapeHTML(x.itemNo)}">ลบ</button></td></tr>`).join('');
   const empty = $('empty12'); empty.hidden = list.length > 0;
@@ -2280,6 +2308,9 @@ function openMatForm(itemNo) {
   mat.edit = x ? x.itemNo : ''; mat.type = x ? x.type : (mat.filter !== 'all' ? mat.filter : 'raw');
   $('mfTitle').textContent = x ? 'แก้ไขสินค้า ' + x.itemNo : 'เพิ่มสินค้าใหม่';
   $('mfName').value = x ? x.itemName : ''; $('mfUnit').value = x ? x.unit : '';
+  $('mfPUnit').value = x ? x.purchaseUnit || '' : ''; $('mfPer').value = x && x.perPurchase !== null && x.perPurchase !== undefined ? x.perPurchase : '';
+  $('mfPUnits').innerHTML = [...new Set(mat.items.map(i => i.purchaseUnit).filter(Boolean).concat(['ลัง', 'กล่อง', 'ถุง', 'แพ็ค', 'แกลลอน']))].map(u => `<option value="${escapeHTML(u)}">`).join('');
+  mat.origUnit = x ? x.unit : ''; mat.hasStock = !!x && x.branches.some(b => Number(b.qty) !== 0);
   $('mfUnits').innerHTML = [...new Set(mat.items.map(i => i.unit).filter(Boolean).concat(['g', 'kg', 'ml', 'l', 'pcs', 'แพ็ค']))].map(u => `<option value="${escapeHTML(u)}">`).join('');
   const cur = x ? x.branches : [];                                   // where the item is stocked right now
   mat.orig = cur.map(b => b.branch);
@@ -2293,7 +2324,16 @@ function openMatForm(itemNo) {
   $('mfError').hidden = true; $('mfSave').disabled = false; $('mfSave').textContent = 'บันทึก';
   renderMatForm(); $('matModal').hidden = false; setTimeout(() => $('mfName').focus(), 50);
 }
+// purchase-unit row follows what is typed (label "1 ลัง ≈ ? แพ็ค"; hidden when bought in the base unit)
+function renderMatUnits() {
+  const bu = $('mfUnit').value.trim(), pu = $('mfPUnit').value.trim();
+  $('mfPerRow').hidden = !pu || same(pu, bu);
+  document.querySelectorAll('#matModal .js-pu').forEach(el => { el.textContent = pu; });
+  document.querySelectorAll('#matModal .js-bu').forEach(el => { el.textContent = bu || 'หน่วยนับ'; });
+  $('mfUnitWarn').hidden = !(mat.edit && mat.hasStock && bu && !same(bu, mat.origUnit));
+}
 function renderMatForm() {
+  renderMatUnits();
   $('mfType').innerHTML = MAT_TYPES.map(([k, l, pre]) => `<button type="button" data-t="${k}" class="${mat.type === k ? 'active' : ''}">${l} (${pre})</button>`).join('');
   $('mfCode').innerHTML = mat.edit ? escapeHTML(mat.edit) + '<small>รหัสเดิม (เปลี่ยนไม่ได้)</small>'
     : escapeHTML(mat.next[mat.type] || '…') + '<small>เลขถัดไป · ระบบยืนยันเลขจริงตอนบันทึก</small>';
@@ -2305,9 +2345,12 @@ async function saveMatForm() {
   const orig = mat.edit ? (mat.orig || []) : [];
   const add = boxes.filter(i => i.checked && !orig.some(o => same(o, i.value))).map(i => i.value);
   const remove = boxes.filter(i => !i.checked && orig.some(o => same(o, i.value))).map(i => i.value);
-  const f = { itemNo: mat.edit, type: mat.type, name: $('mfName').value.trim(), unit: $('mfUnit').value.trim(), add, remove };
+  const pu = $('mfPUnit').value.trim(), perRaw = $('mfPer').value.trim();
+  const f = { itemNo: mat.edit, type: mat.type, name: $('mfName').value.trim(), unit: $('mfUnit').value.trim(), add, remove,
+    purchaseUnit: pu, perPurchase: !pu || same(pu, $('mfUnit').value.trim()) || perRaw === '' ? null : Number(perRaw) };
   const ticked = $('mfBranches').querySelectorAll('input:checked').length;
-  const e = !f.name ? 'กรุณาระบุชื่อสินค้า' : !f.unit ? 'กรุณาระบุหน่วยนับ' : !ticked ? 'เลือกอย่างน้อย 1 สาขา' : '';
+  const e = !f.name ? 'กรุณาระบุชื่อสินค้า' : !f.unit ? 'กรุณาระบุหน่วยนับ' : !ticked ? 'เลือกอย่างน้อย 1 สาขา'
+    : f.perPurchase !== null && !(f.perPurchase > 0) ? 'จำนวนต่อหน่วยซื้อต้องมากกว่า 0' : '';
   if (e) return authError('mfError', e);
   mat.saving = true; $('mfSave').disabled = true; $('mfSave').textContent = 'กำลังบันทึก…';
   try {
@@ -2438,6 +2481,7 @@ function renderUser() {
   document.querySelectorAll('.js-userwrap').forEach(el => { el.hidden = !on; });
   $('userline0').hidden = !on;
   $('reportEntry0').hidden = !isManager();
+  $('tileInventory').hidden = !isManager();   // "จัดการสต๊อกสินค้า" is for managers only
 }
 /* ---------- change password ---------- */
 function openChangePw() {
@@ -3174,6 +3218,7 @@ function render() {
 
 /* ---------- navigation ---------- */
 function goto(view) {
+  if (view === 'inventory' && !isManager()) { toast('ส่วนนี้สำหรับผู้จัดการเท่านั้น'); return goto('dashboard'); }
   state.view = view;
   if (view === 'inventory') { state.q1 = ''; $('q1').value = ''; state.status1 = 'all'; state.sort1 = { key: null, dir: 1 }; loadItems(false).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); }); }
   if (view === 'purchase') { state.q2 = ''; $('q2').value = ''; state.sort2 = { key: null, dir: 1 }; state.selected2 = {}; state.qtyDraft2 = {}; loadItems(false).then(() => { state.lastUpdated1 = new Date().toLocaleString(); render(); }); }
@@ -3357,8 +3402,11 @@ $('q15').addEventListener('input', e => { cnt.q = e.target.value; render(); });
 const cntInput = e => {
   const qi = e.target.closest('.qty-input'); if (!qi) return;
   const row = qi.dataset.row, v = qi.value;
-  if (String(v).trim() === '') { delete state.cntQty[row]; delete state.cntSel[row]; } else { state.cntQty[row] = v; state.cntSel[row] = true; }
-  qi.closest('tr').className = state.cntSel[row] ? 'selected' : '';
+  delete state.cntAuto[row];
+  if (String(v).trim() === '') { delete state.cntQty[row]; delete state.cntSel[row]; state.cntSkip[row] = true; }
+  else { state.cntQty[row] = v; state.cntSel[row] = true; delete state.cntSkip[row]; }
+  const x = branchItems1(state.items).find(i => String(i.row) === String(row));
+  if (x) { qi.closest('tr').className = cntDiff(x) ? 'selected' : ''; const dv = qi.closest('td').querySelector('.cnt-diff'); if (dv) dv.outerHTML = cntDiffHtml(x); }
   cntDraftSave(); renderFlowBar('count');
 };
 $('rows15').addEventListener('input', cntInput);
@@ -3400,6 +3448,7 @@ $('mfType').addEventListener('click', e => { const b = e.target.closest('button[
 $('mfAll').addEventListener('click', () => { const boxes = [...$('mfBranches').querySelectorAll('input:not(:disabled)')]; const all = boxes.every(b => b.checked); boxes.forEach(b => { b.checked = !all; }); });
 $('mfCancel').addEventListener('click', () => closeModal('matModal'));
 $('mfSave').addEventListener('click', saveMatForm);
+['mfUnit', 'mfPUnit'].forEach(id => $(id).addEventListener('input', renderMatUnits));
 $('mfName').addEventListener('keydown', e => { if (e.key === 'Enter') saveMatForm(); });
 $('mdCancel').addEventListener('click', () => closeModal('matDelModal'));
 $('mdConfirm').addEventListener('click', deleteMat);
